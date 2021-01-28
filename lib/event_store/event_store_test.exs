@@ -31,4 +31,17 @@ defmodule Shared.EventTest do
 
     assert [{@event, @metadata}] = all_events()
   end
+
+  test "uses a shared db connection, so we can wrap append_event in a transaction" do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:append_event, fn _, _ ->
+      append_event(@event, @metadata)
+    end)
+    |> Ecto.Multi.run(:force_rollback, fn _, _ ->
+      {:error, :rollback_transaction}
+    end)
+    |> Support.Repo.transaction()
+
+    assert [] = all_events()
+  end
 end

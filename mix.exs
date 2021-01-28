@@ -42,7 +42,7 @@ defmodule Shared.MixProject do
   defp deps do
     [
       # CQRS event store using PostgreSQL for persistence
-      {:eventstore, "~> 1.0"},
+      {:eventstore, ">= 1.2.1"},
       {:ecto, "~> 3.0", optional: true},
       {:ecto_sql, "~> 3.0", optional: true},
       # {:jehovakel_ex_ecto, ">= 0.0.0", optional: true, in_umbrella: true},
