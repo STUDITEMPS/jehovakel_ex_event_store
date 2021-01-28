@@ -1,18 +1,14 @@
 defmodule Shared.EventStore do
   defmodule Util do
-    def default_repository(opts, otp_app) do
-      if Keyword.has_key?(opts, :repo) do
-        Keyword.get(opts, :repo)
-      else
-        case Application.get_env(otp_app, :ecto_repos) do
-          [repo] ->
-            repo
+    def default_repository(otp_app) do
+      case Application.get_env(otp_app, :ecto_repos) do
+        [repo] ->
+          repo
 
-          _ ->
-            IO.warn(":repo option required if you want to wrap append_event in a transaction.")
+        _ ->
+          IO.warn(":repo option required if you want to wrap append_event in a transaction.")
 
-            nil
-        end
+          nil
       end
     end
 
@@ -32,7 +28,8 @@ defmodule Shared.EventStore do
       @otp_app Keyword.fetch!(opts, :otp_app)
       use EventStore, otp_app: @otp_app
 
-      @default_repository Shared.EventStore.Util.default_repository(opts, @otp_app)
+      @repository Keyword.get(opts, :repo) ||
+                    Shared.EventStore.Util.default_repository(@otp_app)
 
       alias Shared.EventStoreEvent
       require Logger
@@ -58,7 +55,7 @@ defmodule Shared.EventStore do
         persisted_events = domain_events |> EventStoreEvent.wrap_for_persistence(metadata)
 
         case @event_store_backend.append_to_stream(stream_uuid, :any_version, persisted_events,
-               conn: Shared.EventStore.Util.current_connection(@default_repository)
+               conn: Shared.EventStore.Util.current_connection(@repository)
              ) do
           :ok ->
             log(stream_uuid, domain_events, metadata)
