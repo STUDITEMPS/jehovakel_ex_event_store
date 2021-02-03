@@ -1,7 +1,22 @@
 defmodule Shared.EventStore do
-  defmacro __using__(_opts \\ []) do
-    quote location: :keep, generated: true do
+  defmacro __using__(opts \\ []) do
+    quote location: :keep, generated: true, bind_quoted: [opts: opts] do
       @event_store_backend __MODULE__
+
+      @otp_app Keyword.fetch!(opts, :otp_app)
+      use EventStore, otp_app: @otp_app
+
+      @repository Keyword.get(opts, :repo) ||
+                    (case(Application.get_env(@otp_app, :ecto_repos)) do
+                       [repo] ->
+                         repo
+
+                       _ ->
+                         IO.warn(
+                           ":repo option required if you want to wrap append_event in a transaction."
+                         )
+                     end)
+
       alias Shared.EventStoreEvent
       require Logger
 
@@ -25,7 +40,9 @@ defmodule Shared.EventStore do
           ) do
         persisted_events = domain_events |> EventStoreEvent.wrap_for_persistence(metadata)
 
-        case @event_store_backend.append_to_stream(stream_uuid, :any_version, persisted_events) do
+        case @event_store_backend.append_to_stream(stream_uuid, :any_version, persisted_events,
+               conn: current_connection(@repository)
+             ) do
           :ok ->
             log(stream_uuid, domain_events, metadata)
             {:ok, persisted_events}
@@ -71,6 +88,14 @@ defmodule Shared.EventStore do
             }"
           end)
         end)
+      end
+
+      defp current_connection(nil), do: nil
+
+      defp current_connection(repo) do
+        %{pid: pool} = Ecto.Adapter.lookup_meta(repo)
+
+        Process.get({Ecto.Adapters.SQL, pool})
       end
     end
   end

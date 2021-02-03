@@ -18,8 +18,8 @@ defmodule Shared.LinkAppendableEventsTest do
     assert {:ok, _event_data} = JehovakelEx.EventStore.append_event(event, _metadata = %{})
 
     wait_until(fn ->
-      assert [{^event, metadata}] = all_events("id_a")
-      assert [{^event, metadata}] = all_events("id_b")
+      assert [{^event, _metadata}] = all_events("id_a")
+      assert [{^event, _metadata}] = all_events("id_b")
     end)
   end
 
@@ -30,8 +30,8 @@ defmodule Shared.LinkAppendableEventsTest do
     assert {:ok, _event_data} = JehovakelEx.EventStore.append_event(event, _metadata = %{})
 
     wait_until(fn ->
-      assert [{^event, metadata}] = all_events("id_a")
-      assert [{^event, metadata}] = all_events("id_b")
+      assert [{^event, _metadata}] = all_events("id_a")
+      assert [{^event, _metadata}] = all_events("id_b")
     end)
 
     # Simulate linking running twice

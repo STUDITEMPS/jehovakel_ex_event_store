@@ -30,12 +30,18 @@ defmodule Support.EventStoreCase do
   setup _tags do
     # reset eventstore
     config = EventStore.Config.parsed(JehovakelEx.EventStore, :jehovakel_ex_event_store)
-    postgrex_config = EventStore.Config.default_postgrex_opts(config)
-    {:ok, eventstore_connection} = Postgrex.start_link(postgrex_config)
-    EventStore.Storage.Initializer.reset!(eventstore_connection)
+
+    {:ok, eventstore_connection} =
+      config
+      |> EventStore.Config.default_postgrex_opts()
+      |> Postgrex.start_link()
+
+    EventStore.Storage.Initializer.reset!(eventstore_connection, config)
+
     {:ok, _} = Application.ensure_all_started(:eventstore)
 
     start_supervised!(JehovakelEx.EventStore)
+    start_supervised!(Support.Repo)
 
     on_exit(fn ->
       # stop eventstore application
