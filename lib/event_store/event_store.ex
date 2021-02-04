@@ -16,6 +16,7 @@ defmodule Shared.EventStore do
                            ":repo option required if you want to wrap append_event in a transaction."
                          )
                      end)
+      @use_shared_connection Keyword.get(opts, :use_shared_connection, true)
 
       alias Shared.EventStoreEvent
       require Logger
@@ -41,7 +42,7 @@ defmodule Shared.EventStore do
         persisted_events = domain_events |> EventStoreEvent.wrap_for_persistence(metadata)
 
         case @event_store_backend.append_to_stream(stream_uuid, :any_version, persisted_events,
-               conn: current_connection(@repository)
+               conn: current_connection(@repository, @use_shared_connection)
              ) do
           :ok ->
             log(stream_uuid, domain_events, metadata)
@@ -90,9 +91,10 @@ defmodule Shared.EventStore do
         end)
       end
 
-      defp current_connection(nil), do: nil
+      defp current_connection(nil, _), do: nil
+      defp current_connection(_, _use_shared_connection = false), do: nil
 
-      defp current_connection(repo) do
+      defp current_connection(repo, _use_shared_connection = true) do
         %{pid: pool} = Ecto.Adapter.lookup_meta(repo)
 
         Process.get({Ecto.Adapters.SQL, pool})
