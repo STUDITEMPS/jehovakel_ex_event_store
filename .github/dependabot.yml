@@ -1,0 +1,35 @@
+version: 2
+registries:
+  hex-organization-oban:
+    type: hex-organization
+    organization: oban
+    key: "${{secrets.HEX_ORGANIZATION_OBAN_KEY}}"
+
+updates:
+- package-ecosystem: mix
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "02:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: ecto_sql
+    versions:
+    - 3.6.0
+  - dependency-name: oban
+  - dependency-name: oban_pro
+  - dependency-name: oban_web
+  - dependency-name: appsignal
+  registries:
+  - hex-organization-oban
+- package-ecosystem: npm
+  directory: "/assets"
+  schedule:
+    interval: daily
+    time: "02:00"
+  open-pull-requests-limit: 10
+  versioning-strategy: increase
+  ignore:
+  - dependency-name: y18n
+    versions:
+    - 4.0.1

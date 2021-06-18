@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  build:
+
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    env:
+      APP_NAME: jehovakel_ex_event_store
+      TZ: Europe/Berlin
+      LANG: de_DE.UTF-8
+      LC_ALL: de_DE.UTF-8
+      ELIXIR_VERSION: 1.12.1
+      ERLANG_VERSION: 23.3.4.3
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+
+    services:
+      db:
+        image: postgres:12
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Elixir
+      uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
+      with:
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.ERLANG_VERSION }}
+    - name: Restore Elixir dependencies cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          deps
+          _build
+          !_build/test/lib/${{ env.APP_NAME }}
+        key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Install dependencies
+      run: mix deps.get
+    - name: Run tests
+      run: mix test
