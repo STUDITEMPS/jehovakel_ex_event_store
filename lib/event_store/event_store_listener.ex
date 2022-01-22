@@ -264,17 +264,13 @@ defmodule Shared.EventStoreListener do
           ErrorContext.delay(context)
 
           Logger.warn(fn ->
-            "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{
-              inspect(event)
-            }"
+            "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}"
           end)
 
           handle_event(event, state, context)
         else
           reason =
-            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{
-              inspect(error)
-            }, Stacktrace: #{inspect(stacktrace)}"
+            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{inspect(error)}, Stacktrace: #{inspect(stacktrace)}"
 
           Logger.warn(reason)
 
@@ -327,9 +323,7 @@ defmodule Shared.EventStoreListener do
       |> Kernel.<>("_event_listener")
 
     Logger.warn(
-      "Please specify a `subscription_key` on initialization for `#{handler}`. Otherwise a change of the file name would break the subscription and all the events get processed again. Default was: \"#{
-        subscription_key
-      }\""
+      "Please specify a `subscription_key` on initialization for `#{handler}`. Otherwise a change of the file name would break the subscription and all the events get processed again. Default was: \"#{subscription_key}\""
     )
 
     subscription_key

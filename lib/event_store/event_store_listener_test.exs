@@ -46,9 +46,10 @@ defmodule Shared.EventStoreListenerTest do
     start_supervised!(ExampleConsumer)
     {:ok, _pid} = Counter.start_link(0)
 
-    on_exit fn ->
+    on_exit(fn ->
       Logger.configure(level: old_log_level)
-    end
+    end)
+
     :ok
   end
 

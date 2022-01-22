@@ -84,9 +84,7 @@ defmodule Shared.EventStore do
           logged_event = Shared.LoggableEvent.to_log(event)
 
           Logger.info(fn ->
-            "Appended event stream_uuid=#{stream_uuid} event=[#{logged_event}] metadata=#{
-              metadata |> inspect()
-            }"
+            "Appended event stream_uuid=#{stream_uuid} event=[#{logged_event}] metadata=#{metadata |> inspect()}"
           end)
         end)
       end
