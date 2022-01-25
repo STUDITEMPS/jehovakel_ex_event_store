@@ -112,4 +112,19 @@ defmodule Shared.EventStoreListenerTest do
     assert logs =~ "Shared.EventStoreListenerTest.ExampleConsumer"
     assert logs =~ "lib/event_store/event_store_listener_test.exs"
   end
+
+  test "can configure custom restart option for the child spec" do
+    defmodule TemporaryRestartConsumer do
+      use Shared.EventStoreListener,
+        subscription_key: "example_consumer",
+        event_store: JehovakelEx.EventStore,
+        restart: :temporary
+
+      def handle(_event, %{}) do
+        child_spec(:foo_bar_opts)
+      end
+    end
+
+    assert TemporaryRestartConsumer.handle(@event, %{})[:restart] == :temporary
+  end
 end

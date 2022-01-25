@@ -98,7 +98,7 @@ defmodule Shared.EventStoreListener do
         default = %{
           id: @name,
           start: {__MODULE__, :start_link, [opts]},
-          restart: :permanent,
+          restart: @opts[:restart] || :permanent,
           type: :worker
         }
 
