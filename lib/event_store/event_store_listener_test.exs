@@ -127,4 +127,28 @@ defmodule Shared.EventStoreListenerTest do
 
     assert TemporaryRestartConsumer.handle(@event, %{})[:restart] == :temporary
   end
+
+  describe "__using__/1" do
+    test "raises if subscription_key is missing" do
+      assert_raise(RuntimeError, "subscription_key is required since v3.0", fn ->
+        defmodule MissingSubscriptionKey do
+          use Shared.EventStoreListener,
+            event_store: JehovakelEx.EventStore
+        end
+      end)
+    end
+
+    test "raises if event_store is missing" do
+      assert_raise(
+        RuntimeError,
+        "Event Store(event_store: My.EventStore) configuration is missing",
+        fn ->
+          defmodule MissingEventStore do
+            use Shared.EventStoreListener,
+              subscription_key: "example_consumer"
+          end
+        end
+      )
+    end
+  end
 end

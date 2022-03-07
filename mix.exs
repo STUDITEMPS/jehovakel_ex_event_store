@@ -4,7 +4,7 @@ defmodule Shared.MixProject do
   def project do
     [
       app: :jehovakel_ex_event_store,
-      version: "2.0.2",
+      version: "3.0.0",
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

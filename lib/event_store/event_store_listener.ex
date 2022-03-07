@@ -75,16 +75,13 @@ defmodule Shared.EventStoreListener do
   defmacro __using__(opts) do
     opts = opts || []
 
+    Shared.EventStoreListener.validate_using_options(opts)
+
     quote location: :keep do
       @opts unquote(opts) || []
       @name @opts[:name] || __MODULE__
 
       @behaviour Shared.EventStoreListener
-
-      # Verhindere, dass`@subscription_key` eine Warnung produzieren, falls nicht gesetzt.
-      unless Module.get_attribute(__MODULE__, :subscription_key) do
-        Module.put_attribute(__MODULE__, :subscription_key, nil)
-      end
 
       # Adds default handle method
       @before_compile unquote(__MODULE__)
@@ -111,15 +108,11 @@ defmodule Shared.EventStoreListener do
     default_opts = %{
       name: nil,
       handler_module: nil,
-      subscription_key: nil,
       subscription: nil,
-      start_from: :origin,
-      event_store: nil
+      start_from: :origin
     }
 
     opts = Enum.into(opts, default_opts)
-    opts[:event_store] || raise "Event Store(event_store: My.EventStore) configuration is missing"
-
     state = %{opts | handler_module: handler_module, name: name}
 
     GenServer.start_link(__MODULE__, state, name: name)
@@ -128,15 +121,6 @@ defmodule Shared.EventStoreListener do
   defmacro __before_compile__(_env) do
     quote generated: true do
       def init(state) do
-        state =
-          case @subscription_key do
-            subscription_key when is_binary(subscription_key) and subscription_key != "" ->
-              %{state | subscription_key: subscription_key}
-
-            _ ->
-              state
-          end
-
         {:ok, state}
       end
 
@@ -161,11 +145,9 @@ defmodule Shared.EventStoreListener do
   end
 
   @impl true
-  def init(
-        %{name: handler_name, handler_module: handler_module, event_store: event_store} = state
-      ) do
+  def init(%{handler_module: handler_module, event_store: event_store} = state) do
     with {:ok, new_state} <- handler_module.init(state),
-         subscription_key = new_state[:subscription_key] || subscription_key_for(handler_name),
+         subscription_key = new_state[:subscription_key],
          start_from = new_state[:start_from] || :origin,
          {:ok, subscription} <-
            event_store.subscribe_to_all_streams(
@@ -310,22 +292,20 @@ defmodule Shared.EventStoreListener do
     :ok = event_store.ack(subscription, event)
   end
 
-  @deprecated """
-  Set `subscription_key` on initialization. Otherwise a change of the file name would break the subscription and all the events get processed again.
-  """
-  defp subscription_key_for(handler) do
-    subscription_key =
-      handler
-      |> Atom.to_string()
-      |> String.split(".")
-      |> Enum.at(-1)
-      |> Macro.underscore()
-      |> Kernel.<>("_event_listener")
+  def validate_using_options(opts) do
+    valid_event_store?(opts[:event_store]) ||
+      raise "Event Store(event_store: My.EventStore) configuration is missing"
 
-    Logger.warn(
-      "Please specify a `subscription_key` on initialization for `#{handler}`. Otherwise a change of the file name would break the subscription and all the events get processed again. Default was: \"#{subscription_key}\""
-    )
-
-    subscription_key
+    valid_subscription_key?(opts[:subscription_key]) ||
+      raise "subscription_key is required since v3.0"
   end
+
+  defp valid_event_store?(nil), do: false
+  defp valid_event_store?(_), do: true
+
+  defp valid_subscription_key?(key) when is_binary(key) do
+    key != ""
+  end
+
+  defp valid_subscription_key?(_), do: false
 end
