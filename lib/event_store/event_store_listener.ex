@@ -4,16 +4,16 @@ defmodule Shared.EventStoreListener do
   alias EventStore.RecordedEvent
 
   defmodule ErrorContext do
-    defstruct error_count: 0, max_retries: 3, delay_factor: 10
+    defstruct [:error_count, :max_retries, :base_delay_in_ms]
 
     @type t :: %__MODULE__{
             error_count: integer,
             max_retries: integer,
-            delay_factor: integer
+            base_delay_in_ms: integer
           }
 
-    def new do
-      %__MODULE__{error_count: 0, max_retries: 3}
+    def new(max_retries: max_retries, base_delay_in_ms: base_delay_in_ms) do
+      %__MODULE__{error_count: 0, max_retries: max_retries, base_delay_in_ms: base_delay_in_ms}
     end
 
     def record_error(%__MODULE__{} = context) do
@@ -31,11 +31,11 @@ defmodule Shared.EventStoreListener do
     def delay(%__MODULE__{
           error_count: error_count,
           max_retries: max_retries,
-          delay_factor: delay_factor
+          base_delay_in_ms: base_delay_in_ms
         })
         when error_count <= max_retries do
       # Exponential backoff
-      sleep_duration = (:math.pow(2, error_count) * delay_factor) |> round()
+      sleep_duration = (:math.pow(2, error_count) * base_delay_in_ms) |> round()
 
       Process.sleep(sleep_duration)
     end
@@ -109,7 +109,8 @@ defmodule Shared.EventStoreListener do
       name: nil,
       handler_module: nil,
       subscription: nil,
-      start_from: :origin
+      start_from: :origin,
+      retry_opts: [max_retries: 3, base_delay_in_ms: 10]
     }
 
     opts = Enum.into(opts, default_opts)
@@ -169,11 +170,11 @@ defmodule Shared.EventStoreListener do
   end
 
   @impl true
-  def handle_info({:events, events}, %{name: name} = state) do
+  def handle_info({:events, events}, %{name: name, retry_opts: retry_opts} = state) do
     Logger.debug(fn -> "#{name} received events: #{inspect(events)}" end)
 
     try do
-      Enum.each(events, fn event -> handle_event(event, state, ErrorContext.new()) end)
+      Enum.each(events, fn event -> handle_event(event, state, ErrorContext.new(retry_opts)) end)
       {:noreply, state}
     catch
       {:error, reason} ->

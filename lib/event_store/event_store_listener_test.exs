@@ -43,7 +43,6 @@ defmodule Shared.EventStoreListenerTest do
     old_log_level = Logger.level()
     Logger.configure(level: :warn)
 
-    start_supervised!(ExampleConsumer)
     {:ok, _pid} = Counter.start_link(0)
 
     on_exit(fn ->
@@ -55,6 +54,8 @@ defmodule Shared.EventStoreListenerTest do
 
   describe "Retry" do
     test "automatically on Exception during event handling without GenServer restart" do
+      start_supervised!(ExampleConsumer)
+
       capture_log([level: :warn], fn ->
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
@@ -65,6 +66,8 @@ defmodule Shared.EventStoreListenerTest do
     end
 
     test "does not restart Listener process" do
+      start_supervised!(ExampleConsumer)
+
       capture_log([level: :warn], fn ->
         listener_pid = Process.whereis(ExampleConsumer)
 
@@ -77,6 +80,8 @@ defmodule Shared.EventStoreListenerTest do
     end
 
     test "stops EventStoreListener GenServer after 3 attempts" do
+      start_supervised!(ExampleConsumer)
+
       logs =
         capture_log([level: :warn], fn ->
           listener_pid = Process.whereis(ExampleConsumer)
@@ -95,9 +100,52 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleConsumer is retrying (3/3)"
       assert logs =~ "is dying due to bad event after 3 retries"
     end
+
+    test "allows to configure retry behaviour" do
+      defmodule ExampleConsumerWithCustomConfig do
+        use Shared.EventStoreListener,
+          subscription_key: "example_consumer_with_custom_config",
+          event_store: JehovakelEx.EventStore,
+          retry_opts: [max_retries: 2, base_delay_in_ms: 8]
+
+        def handle(_event, %{test_pid: test_pid, raise_until: raise_until}) do
+          case Counter.increment() do
+            count when count <= raise_until ->
+              send(test_pid, :exception_during_event_handling)
+              raise EventHandlingError, "BAM BAM BAM"
+
+            _ ->
+              send(test_pid, :event_handled_successfully)
+          end
+
+          :ok
+        end
+      end
+
+      start_supervised!(ExampleConsumerWithCustomConfig)
+
+      logs =
+        capture_log([level: :warn], fn ->
+          listener_pid = Process.whereis(ExampleConsumerWithCustomConfig)
+
+          {:ok, _events} =
+            JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 3})
+
+          assert_receive :exception_during_event_handling
+          assert_receive :event_handled_successfully, 800
+
+          assert listener_pid != Process.whereis(ExampleConsumerWithCustomConfig)
+        end)
+
+      assert logs =~ "ExampleConsumerWithCustomConfig is retrying (1/2)"
+      assert logs =~ "ExampleConsumerWithCustomConfig is retrying (2/2)"
+      assert logs =~ "is dying due to bad event after 2 retries"
+    end
   end
 
   test "Log Stacktrace on failing to handle exception during event handling" do
+    start_supervised!(ExampleConsumer)
+
     logs =
       capture_log([level: :warn], fn ->
         {:ok, _events} =
