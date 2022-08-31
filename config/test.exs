@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :jehovakel_ex_event_store,
   ecto_repos: [Support.Repo],
@@ -11,7 +11,7 @@ config :jehovakel_ex_event_store, Support.Repo,
   password: System.get_env("PG_PASSWORD") || "",
   port: System.get_env("PG_PORT") || "5432",
   hostname: System.get_env("PG_HOST") || "localhost",
-  database: System.get_env("PG_NAME") || "jehovakel_ex_#{Mix.env()}",
+  database: System.get_env("PG_NAME") || "jehovakel_ex_#{config_env()}",
   # Avoid collisions with eventstore `schema_migrations` relation
   migration_source: "readstore_schema_migrations",
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
@@ -25,7 +25,7 @@ config :jehovakel_ex_event_store, JehovakelEx.EventStore,
   password: System.get_env("PG_PASSWORD") || "",
   port: System.get_env("PG_PORT") || "5432",
   hostname: System.get_env("PG_HOST") || "localhost",
-  database: System.get_env("PG_NAME") || "jehovakel_ex_#{Mix.env()}",
+  database: System.get_env("PG_NAME") || "jehovakel_ex_#{config_env()}",
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
   # erhöht die DB-Pool checkout timeouts, so dass die Tests mehr Zeit haben und durchlaufen können
   queue_target: 1_000,
