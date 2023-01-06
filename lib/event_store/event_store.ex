@@ -7,7 +7,7 @@ defmodule Shared.EventStore do
       use EventStore, otp_app: @otp_app
 
       @repository Keyword.get(opts, :repo) ||
-                    (case(Application.get_env(@otp_app, :ecto_repos)) do
+                    (case(Application.compile_env(@otp_app, :ecto_repos)) do
                        [repo] ->
                          repo
 
