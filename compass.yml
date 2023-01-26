@@ -1,6 +1,6 @@
 name: jehovakel_ex_event_store
 id: 'ari:cloud:compass:e1d41f8a-4a61-4fa9-80d9-a0967619f2ea:component/e8fcfeae-19d1-4cce-9554-6226e62cd618/a9cb74aa-e551-481a-bc44-767d50da8a2b'
-description: null
+description: This library is a wrapper around the Elixir EventStore library.
 ownerId: 'ari:cloud:teams::team/02f444fe-c2c0-4af5-a033-cb345c5f2324'
 fields:
   tier: 1
