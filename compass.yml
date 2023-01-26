@@ -13,9 +13,9 @@ links:
   - name: Around Room
     type: CHAT_CHANNEL
     url: 'https://around.co/r/jv-finopstech'
-  - name: Slack Channel
+  - name: Elixir Slack Channel
     type: CHAT_CHANNEL
-    url: 'https://jobvalley.slack.com/archives/C6XRTJD9R'
+    url: 'https://jobvalley.slack.com/archives/C6VS88M42'
 relationships: {}
 
 # Learn more about formatting compass.yml:
