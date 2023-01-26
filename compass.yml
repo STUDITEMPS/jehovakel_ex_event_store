@@ -4,9 +4,9 @@ description: This library is a wrapper around the Elixir EventStore library.
 ownerId: 'ari:cloud:teams::team/02f444fe-c2c0-4af5-a033-cb345c5f2324'
 fields: {}
 links:
-  - name: Freigabe
+  - name: null
     type: REPOSITORY
-    url: 'https://github.com/studitemps/freigabe'
+    url: 'https://github.com/studitemps/jehovakel_ex_event_store'
   - name: null
     type: PROJECT
     url: 'https://studitemps.atlassian.net/browse/FOT'
