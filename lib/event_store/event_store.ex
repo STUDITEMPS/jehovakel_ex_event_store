@@ -21,7 +21,8 @@ defmodule Shared.EventStore do
       alias Shared.EventStoreEvent
       require Logger
 
-      @spec append_event(list(struct()) | struct(), keyword | map) :: {:ok, list(EventStore.EventData.t())}
+      @spec append_event(list(struct()) | struct(), keyword | map) ::
+              {:ok, list(EventStore.EventData.t())}
       def append_event(domain_events, metadata) do
         domain_events = List.wrap(domain_events)
 
@@ -35,7 +36,8 @@ defmodule Shared.EventStore do
         {:ok, appended_events}
       end
 
-      @spec append_event(String.t(), list(struct()) | struct(), keyword | map) :: {:ok, list(EventStore.EventData.t())}
+      @spec append_event(String.t(), list(struct()) | struct(), keyword | map) ::
+              {:ok, list(EventStore.EventData.t())}
       def append_event(
             stream_uuid,
             domain_events,
@@ -55,7 +57,8 @@ defmodule Shared.EventStore do
         end
       end
 
-      @spec append_events(String.t(), list(struct()) | struct(), keyword | map) :: {:ok, list(EventStore.EventData.t())}
+      @spec append_events(String.t(), list(struct()) | struct(), keyword | map) ::
+              {:ok, list(EventStore.EventData.t())}
       def append_events(stream_uuid, domain_events, metadata),
         do: append_event(stream_uuid, domain_events, metadata)
 
