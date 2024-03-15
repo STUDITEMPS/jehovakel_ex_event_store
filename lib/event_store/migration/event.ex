@@ -73,7 +73,7 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
                   Logger.info("Skipping event #{event.event_id}")
 
                 other ->
-                  Logger.warn("Return value of '#{inspect(other)}' is not supported.")
+                  Logger.warning("Return value of '#{inspect(other)}' is not supported.")
               end
             end)
           end,

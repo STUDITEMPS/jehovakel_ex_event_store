@@ -246,7 +246,7 @@ defmodule Shared.EventStoreListener do
         if ErrorContext.retry?(context) do
           ErrorContext.delay(context)
 
-          Logger.warn(fn ->
+          Logger.warning(fn ->
             "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}"
           end)
 
@@ -255,7 +255,7 @@ defmodule Shared.EventStoreListener do
           reason =
             "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{inspect(error)}, Stacktrace: #{inspect(stacktrace)}"
 
-          Logger.warn(reason)
+          Logger.warning(reason)
 
           throw({:error, reason})
         end
@@ -270,11 +270,11 @@ defmodule Shared.EventStoreListener do
       {:stop, reason} ->
         reason = "#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}"
 
-        Logger.warn(reason)
+        Logger.warning(reason)
         throw({:error, reason})
 
       error ->
-        Logger.warn(fn ->
+        Logger.warning(fn ->
           "#{name} on_error/5 returned an invalid response #{inspect(error)}"
         end)
 

@@ -41,7 +41,7 @@ defmodule Shared.EventStoreListenerTest do
 
   setup do
     old_log_level = Logger.level()
-    Logger.configure(level: :warn)
+    Logger.configure(level: :warning)
 
     {:ok, _pid} = Counter.start_link(0)
 
@@ -56,7 +56,7 @@ defmodule Shared.EventStoreListenerTest do
     test "automatically on Exception during event handling without GenServer restart" do
       start_supervised!(ExampleConsumer)
 
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
 
@@ -68,7 +68,7 @@ defmodule Shared.EventStoreListenerTest do
     test "does not restart Listener process" do
       start_supervised!(ExampleConsumer)
 
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         listener_pid = Process.whereis(ExampleConsumer)
 
         {:ok, _events} =
@@ -83,7 +83,7 @@ defmodule Shared.EventStoreListenerTest do
       start_supervised!(ExampleConsumer)
 
       logs =
-        capture_log([level: :warn], fn ->
+        capture_log([level: :warning], fn ->
           listener_pid = Process.whereis(ExampleConsumer)
 
           {:ok, _events} =
@@ -125,7 +125,7 @@ defmodule Shared.EventStoreListenerTest do
       start_supervised!(ExampleConsumerWithCustomConfig)
 
       logs =
-        capture_log([level: :warn], fn ->
+        capture_log([level: :warning], fn ->
           listener_pid = Process.whereis(ExampleConsumerWithCustomConfig)
 
           {:ok, _events} =
@@ -147,7 +147,7 @@ defmodule Shared.EventStoreListenerTest do
     start_supervised!(ExampleConsumer)
 
     logs =
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 4})
 
