@@ -1,0 +1,13 @@
+#!/bin/bash -ieu
+
+# install rebar and hex, present in base image
+install-mix-tooling
+
+# prepare application
+mix deps.get
+mix assets.setup
+mix ecto.setup
+MIX_ENV=test mix ecto.setup
+
+# import GitHub public key for git commit signature verification
+curl https://github.com/web-flow.gpg | gpg --import

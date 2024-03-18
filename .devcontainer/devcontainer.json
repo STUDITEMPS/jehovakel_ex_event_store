@@ -1,0 +1,24 @@
+{
+    "name": "jehovakel_ex_event_store",
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
+    "service": "devcontainer",
+    "workspaceFolder": "/workspace",
+    "remoteEnv": {
+        "HEROKU_API_KEY": "${localEnv:FINOPSTECH_BOT_HEROKU_CLI_TOKEN}"
+    },
+    "onCreateCommand": ".devcontainer/bin/onCreateCommand",
+    "updateContentCommand": ".devcontainer/bin/updateContentCommand",
+    "customizations": {
+        "codespaces": {
+            "repositories": {
+                "STUDITEMPS/devcontainer-base": {
+                    "permissions": {
+                        "packages": "read"
+                    }
+                }
+            }
+        }
+    }
+}
