@@ -7,9 +7,10 @@ defprotocol Shared.LoggableEvent do
 
   ## Deriving
 
-  If you don't want to change the format of the log message but only want to
-  define the keys contained in the log message you can use the derive the
+  If you don't want to change the format of the log message, but only want to
+  define the keys contained in the log message you can use the derive
   protocol and provide the `:only` or the `:except` or :all option
+
 
       defmodule My.CustomEvent do
         @derive [{Shared.LoggableEvent, only: [:entity_id]}]
