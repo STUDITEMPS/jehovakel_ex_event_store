@@ -1,6 +1,7 @@
 defmodule Shared.EventStoreListenerTest do
   use Support.EventStoreCase, async: false
   import ExUnit.CaptureLog
+  import Mock
 
   @event %Shared.EventTest.FakeEvent{}
 
@@ -41,7 +42,7 @@ defmodule Shared.EventStoreListenerTest do
 
   setup do
     old_log_level = Logger.level()
-    Logger.configure(level: :warning)
+    Logger.configure(level: :info)
 
     {:ok, _pid} = Counter.start_link(0)
 
@@ -140,6 +141,39 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleConsumerWithCustomConfig is retrying (1/2)"
       assert logs =~ "ExampleConsumerWithCustomConfig is retrying (2/2)"
       assert logs =~ "is dying due to bad event after 2 retries"
+    end
+
+    test "allows to snooze on error" do
+      defmodule SnoozingConsumer do
+        use Shared.EventStoreListener,
+          subscription_key: "snoozing_consumer",
+          event_store: JehovakelEx.EventStore
+
+        @impl true
+        def handle(_event, _meta) do
+          raise RuntimeError, "Please Snooze"
+        end
+
+        @impl true
+        def on_error({:error, %RuntimeError{message: "Please Snooze"}}, _, _, _, _) do
+          {:snooze, 37}
+        end
+      end
+
+      start_supervised!(SnoozingConsumer)
+
+      test_process = self()
+
+      logs =
+        capture_log(fn ->
+          with_mock Process, [:passthrough],
+            sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
+            {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+            assert_receive {:snoozing, 37}
+          end
+        end)
+
+      assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for 37ms"
     end
   end
 

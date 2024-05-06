@@ -56,7 +56,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:retry, delay :: non_neg_integer(), error_context :: error_context()}
+              | {:snooze, delay :: non_neg_integer()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -68,7 +68,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:retry, delay :: non_neg_integer(), error_context :: error_context()}
+              | {:snooze, delay :: non_neg_integer()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -240,6 +240,14 @@ defmodule Shared.EventStoreListener do
     %RecordedEvent{data: domain_event, metadata: metadata} = event
 
     case handler_module.on_error(error, stacktrace, domain_event, metadata, context) do
+      {:snooze, delay} when is_integer(delay) ->
+        Logger.info(fn ->
+          "Snoozing #{inspect(name)} for #{delay}ms while processing event #{inspect(event)}. Reason: #{format_error(error, stacktrace)}"
+        end)
+
+        Process.sleep(delay)
+        handle_event(event, state, context)
+
       {:retry, %ErrorContext{} = context} ->
         context = ErrorContext.record_error(context)
 
@@ -253,7 +261,7 @@ defmodule Shared.EventStoreListener do
           handle_event(event, state, context)
         else
           reason =
-            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{inspect(error)}, Stacktrace: #{inspect(stacktrace)}"
+            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{format_error(error)}. Stacktrace: #{inspect(stacktrace)}"
 
           Logger.warning(reason)
 
@@ -309,4 +317,12 @@ defmodule Shared.EventStoreListener do
   end
 
   defp valid_subscription_key?(_), do: false
+
+  defp format_error(error, stacktrace \\ [])
+
+  defp format_error({:error, reason}, stacktrace) when is_exception(reason),
+    do: Exception.format(:error, reason, stacktrace)
+
+  defp format_error({:error, reason}, _stacktrace), do: inspect(reason)
+  defp format_error(error, _stacktrace), do: inspect(error)
 end
