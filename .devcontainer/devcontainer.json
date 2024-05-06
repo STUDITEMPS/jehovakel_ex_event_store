@@ -5,11 +5,8 @@
     ],
     "service": "devcontainer",
     "workspaceFolder": "/workspace",
-    "remoteEnv": {
-        "HEROKU_API_KEY": "${localEnv:FINOPSTECH_BOT_HEROKU_CLI_TOKEN}"
-    },
-    "onCreateCommand": ".devcontainer/bin/onCreateCommand",
-    "updateContentCommand": ".devcontainer/bin/updateContentCommand",
+    // "onCreateCommand": ".devcontainer/bin/onCreateCommand",
+    // "updateContentCommand": ".devcontainer/bin/updateContentCommand",
     "customizations": {
         "codespaces": {
             "repositories": {
