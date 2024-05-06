@@ -33,20 +33,20 @@ config :jehovakel_ex_event_store,
 
 # General Repository configuration
 config :jehovakel_ex_event_store, Support.JehovakelExRepo,
-  username: System.get_env("PG_USER") || System.get_env()["USER"],
-  password: System.get_env("PG_PASSWORD") || "",
+  username: System.get_env("PG_USER") || "postgres",
+  password: System.get_env("PG_PASSWORD") || "postgres",
   port: System.get_env("PG_PORT") || "5432",
-  hostname: System.get_env("PG_HOST") || "localhost",
+  hostname: System.get_env("PG_HOST") || "postgres",
   database: System.get_env("PG_NAME") || "jehovakel_ex_event_store_#{config_env()}",
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
   migration_source: "readstore_schema_migrations"
 
 config :eventstore, EventStore.Storage,
   serializer: EventStore.TermSerializer,
-  username: System.get_env("PG_USER") || System.get_env()["USER"],
-  password: System.get_env("PG_PASSWORD") || "",
+  username: System.get_env("PG_USER") || "postgres",
+  password: System.get_env("PG_PASSWORD") || "postgres",
   port: System.get_env("PG_PORT") || "5432",
-  hostname: System.get_env("PG_HOST") || "localhost",
+  hostname: System.get_env("PG_HOST") || "postgres",
   database: System.get_env("PG_NAME") || "jehovakel_ex_event_store_#{config_env()}",
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 
