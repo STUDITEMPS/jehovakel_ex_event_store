@@ -1,6 +1,7 @@
 defmodule Shared.EventStoreListener do
   use GenServer
   require Logger
+  alias Timex.Duration
   alias EventStore.RecordedEvent
 
   defmodule ErrorContext do
@@ -46,6 +47,7 @@ defmodule Shared.EventStoreListener do
   @type error_context :: ErrorContext.t()
   @type state :: map() | list()
   @type handle_result :: :ok | {:error, reason :: any()}
+  @type delay :: non_neg_integer() | Duration.t()
 
   @callback handle(domain_event(), metadata()) :: handle_result()
   @callback handle(domain_event(), metadata(), state()) :: handle_result()
@@ -56,7 +58,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:snooze, delay :: non_neg_integer()}
+              | {:snooze, delay()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -68,7 +70,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:snooze, delay :: non_neg_integer()}
+              | {:snooze, delay()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -240,12 +242,21 @@ defmodule Shared.EventStoreListener do
     %RecordedEvent{data: domain_event, metadata: metadata} = event
 
     case handler_module.on_error(error, stacktrace, domain_event, metadata, context) do
-      {:snooze, delay} when is_integer(delay) ->
-        Logger.info(fn ->
-          "Snoozing #{inspect(name)} for #{delay}ms while processing event #{inspect(event)}. Reason: #{format_error(error, stacktrace)}"
-        end)
+      {:snooze, delay} ->
+        {delay_in_ms, delay_string} =
+          case delay do
+            %Duration{} ->
+              {Duration.to_milliseconds(delay, truncate: true), Duration.to_string(delay)}
 
-        Process.sleep(delay)
+            d when is_integer(d) ->
+              {delay, "#{delay}ms"}
+          end
+
+        Logger.info(
+          "Snoozing #{inspect(name)} for #{delay_string} while processing event #{inspect(event)}. Reason: #{format_error(error, stacktrace)}"
+        )
+
+        Process.sleep(delay_in_ms)
         handle_event(event, state, context)
 
       {:retry, %ErrorContext{} = context} ->

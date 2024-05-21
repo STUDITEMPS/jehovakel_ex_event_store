@@ -177,6 +177,39 @@ defmodule Shared.EventStoreListenerTest do
     end
   end
 
+  test "accepts Timex.Duration as :snooze delay" do
+    defmodule SnoozingConsumer do
+      use Shared.EventStoreListener,
+        subscription_key: "snoozing_consumer",
+        event_store: JehovakelEx.EventStore
+
+      @impl true
+      def handle(_event, _meta) do
+        raise RuntimeError, "Please Snooze"
+      end
+
+      @impl true
+      def on_error({:error, %RuntimeError{message: "Please Snooze"}}, _, _, _, _) do
+        {:snooze, Timex.Duration.from_minutes(1)}
+      end
+    end
+
+    start_supervised!(SnoozingConsumer)
+
+    test_process = self()
+
+    logs =
+      capture_log(fn ->
+        with_mock Process, [:passthrough],
+          sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
+          {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+          assert_receive {:snoozing, 60_000}
+        end
+      end)
+
+    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for PT1M"
+  end
+
   test "Log Stacktrace on failing to handle exception during event handling" do
     start_supervised!(ExampleConsumer)
 

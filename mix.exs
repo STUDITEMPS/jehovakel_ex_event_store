@@ -47,7 +47,8 @@ defmodule Shared.MixProject do
       {:ecto_sql, "~> 3.0", optional: true},
       # {:jehovakel_ex_ecto, ">= 0.0.0", optional: true, in_umbrella: true},
       {:excoveralls, ">= 0.10.5", only: :test},
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:timex, "~> 3.7", optional: true}
     ]
   end
 
