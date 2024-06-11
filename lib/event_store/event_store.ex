@@ -62,6 +62,9 @@ defmodule Shared.EventStore do
       def append_events(stream_uuid, domain_events, metadata),
         do: append_event(stream_uuid, domain_events, metadata)
 
+      @spec all_events(String.t(), keyword()) ::
+              list(Shared.EventStoreEvent.event_with_metadata())
+              | list(EventStore.RecordedEvent.t())
       def all_events(stream_id \\ nil, opts \\ []) do
         {:ok, events} =
           case stream_id do
