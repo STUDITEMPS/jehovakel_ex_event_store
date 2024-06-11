@@ -79,6 +79,43 @@ defmodule Shared.EventStore do
         end
       end
 
+      @spec find_event(String.t()) ::
+              {:ok, Shared.EventStoreEvent.event_with_metadata()}
+              | {:error, :invalid_event_id}
+              | {:error, :no_event_found}
+              | {:error, any()}
+      def find_event(event_id) do
+        with {:ok, event_uuid} <- Ecto.UUID.dump(event_id),
+             {:ok, %Postgrex.Result{rows: [row]}} <-
+               Arbeitnehmerverwaltung.Repo.query(
+                 """
+                   select se.stream_version, e.event_id, s.stream_uuid, se.original_stream_version, e.event_type, e.correlation_id, e.causation_id, e.data, e.metadata, e.created_at
+                   from stream_events se
+                   join streams s
+                     on s.stream_id = se.original_stream_id
+                   join events e
+                     on se.event_id = e.event_id
+                   where e.event_id = $1 and se.stream_id = 0
+                 """,
+                 [event_uuid]
+               ) do
+          {:ok,
+           row
+           |> EventStore.Storage.Reader.EventAdapter.to_event_data_from_row()
+           |> EventStore.RecordedEvent.deserialize(serializer())
+           |> Shared.EventStoreEvent.unwrap()}
+        else
+          :error ->
+            {:error, :invalid_event_id}
+
+          {:error, error} ->
+            {:error, error}
+
+          {:ok, %Postgrex.Result{num_rows: 0}} ->
+            {:error, :no_event_found}
+        end
+      end
+
       defp events_for_stream(stream_id) do
         case @event_store_backend.read_stream_forward(stream_id) do
           {:error, :stream_not_found} -> {:ok, []}
@@ -105,6 +142,10 @@ defmodule Shared.EventStore do
         %{pid: pool} = Ecto.Adapter.lookup_meta(repo)
 
         Process.get({Ecto.Adapters.SQL, pool})
+      end
+
+      defp serializer do
+        @event_store_backend |> EventStore.Config.lookup() |> Keyword.fetch!(:serializer)
       end
     end
   end
