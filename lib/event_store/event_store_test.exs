@@ -32,6 +32,13 @@ defmodule Shared.EventTest do
     assert [{@event, @metadata}] = all_events()
   end
 
+  test "find event by event_id" do
+    {:ok, _} = append_event("stream_uuid", @event, @metadata)
+    [%EventStore.RecordedEvent{event_id: event_id}] = all_events(nil, unwrap: false)
+
+    assert {:ok, {@event, %{event_id: ^event_id}}} = find_event(event_id)
+  end
+
   test "uses a shared db connection, so we can wrap append_event in a transaction" do
     Ecto.Multi.new()
     |> Ecto.Multi.run(:append_event, fn _, _ ->

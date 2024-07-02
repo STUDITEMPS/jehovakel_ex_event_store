@@ -87,7 +87,7 @@ defmodule Shared.EventStore do
       def find_event(event_id) do
         with {:ok, event_uuid} <- Ecto.UUID.dump(event_id),
              {:ok, %Postgrex.Result{rows: [row]}} <-
-               Arbeitnehmerverwaltung.Repo.query(
+               @repository.query(
                  """
                    select se.stream_version, e.event_id, s.stream_uuid, se.original_stream_version, e.event_type, e.correlation_id, e.causation_id, e.data, e.metadata, e.created_at
                    from stream_events se
