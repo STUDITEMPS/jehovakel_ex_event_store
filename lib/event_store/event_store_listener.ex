@@ -1,10 +1,12 @@
 defmodule Shared.EventStoreListener do
+  @moduledoc false
   use GenServer
   require Logger
   alias Timex.Duration
   alias EventStore.RecordedEvent
 
   defmodule ErrorContext do
+    @moduledoc false
     defstruct [:error_count, :max_retries, :base_delay_in_ms]
 
     @type t :: %__MODULE__{
@@ -265,9 +267,9 @@ defmodule Shared.EventStoreListener do
         if ErrorContext.retry?(context) do
           ErrorContext.delay(context)
 
-          Logger.warning(fn ->
+          Logger.warning(
             "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}"
-          end)
+          )
 
           handle_event(event, state, context)
         else

@@ -1,4 +1,5 @@
 defmodule Shared.EventStoreEvent do
+  @moduledoc false
   @type event_with_metadata :: {event :: term, metadata :: map()}
 
   @spec wrap_for_persistence(event :: term | events :: list(term), metadata :: Enum.t()) ::

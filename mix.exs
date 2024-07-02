@@ -45,13 +45,15 @@ defmodule Shared.MixProject do
       {:eventstore, ">= 1.2.1"},
       {:ecto, "~> 3.0", optional: true},
       {:ecto_sql, "~> 3.0", optional: true},
-      {:mock, "~> 0.3.0", only: :test},
-      {:timex, "~> 3.7", optional: true}
+      {:timex, "~> 3.7", optional: true},
+      {:mock, "~> 0.3.0", only: :test, optional: true},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false, optional: true},
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false, optional: true}
     ]
   end
 
   defp description do
-    "TODO: describe this package"
+    "Thin wrapper around the Elixir EventStore providing a convenient interface."
   end
 
   defp package do

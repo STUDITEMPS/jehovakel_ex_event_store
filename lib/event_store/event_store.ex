@@ -1,4 +1,5 @@
 defmodule Shared.EventStore do
+  @moduledoc false
   defmacro __using__(opts \\ []) do
     quote location: :keep, generated: true, bind_quoted: [opts: opts] do
       @event_store_backend __MODULE__
@@ -136,9 +137,9 @@ defmodule Shared.EventStore do
       end
 
       defp current_connection(nil, _), do: nil
-      defp current_connection(_, _use_shared_connection = false), do: nil
+      defp current_connection(_, false = _use_shared_connection), do: nil
 
-      defp current_connection(repo, _use_shared_connection = true) do
+      defp current_connection(repo, true = _use_shared_connection) do
         %{pid: pool} = Ecto.Adapter.lookup_meta(repo)
 
         Process.get({Ecto.Adapters.SQL, pool})
