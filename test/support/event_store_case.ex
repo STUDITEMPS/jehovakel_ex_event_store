@@ -8,7 +8,14 @@ defmodule Support.EventStoreCase do
   using do
     quote do
       import JehovakelEx.EventStore,
-        only: [append_event: 2, append_event: 3, all_events: 2, all_events: 1, all_events: 0],
+        only: [
+          append_event: 2,
+          append_event: 3,
+          all_events: 2,
+          all_events: 1,
+          all_events: 0,
+          find_event: 1
+        ],
         warn: false
 
       def wait_until(fun), do: wait_until(500, fun)

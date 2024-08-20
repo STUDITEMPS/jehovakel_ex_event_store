@@ -3,6 +3,7 @@
 # section in the documentation for Kernel.defprotocol/2
 
 defmodule Shared.EventTest.FakeEvent do
+  @moduledoc false
   defstruct some: :default
 end
 

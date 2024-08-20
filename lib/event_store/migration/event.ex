@@ -39,50 +39,41 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
             to_string(anzahl_events) <> " Events vom Typ " <> to_string(event_type_to_migrate)
         )
 
-        Ecto.Adapters.SQL.query!(
-          repository,
-          "ALTER TABLE events DISABLE TRIGGER no_update_events"
-        )
-
-        Ecto.Adapters.SQL.query!(
-          repository,
-          "ALTER TABLE events DISABLE TRIGGER no_delete_events"
-        )
+        disable_append_only_protection(repository)
 
         repository.transaction(
-          fn ->
-            Enum.each(events, fn event ->
-              case run_migration(migration, event) do
-                {new_data, new_metadata} ->
-                  %event_module{} = new_data
-                  event_type = Atom.to_string(event_module)
-
-                  {:ok, migrated_at} = DateTime.now("Europe/Berlin")
-
-                  new_metadata =
-                    new_metadata
-                    |> Enum.into(%{})
-                    |> Map.merge(%{migrated_at: migrated_at, original_event: event.data})
-
-                  changeset =
-                    change(event, event_type: event_type, data: new_data, metadata: new_metadata)
-
-                  repository.update!(changeset)
-
-                :skip ->
-                  Logger.info("Skipping event #{event.event_id}")
-
-                other ->
-                  Logger.warn("Return value of '#{inspect(other)}' is not supported.")
-              end
-            end)
-          end,
+          fn -> Enum.each(events, &do_migrate(&1, migration, repository)) end,
           timeout: 600_000_000
         )
       end
     after
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_delete_events")
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_update_events")
+      enable_append_only_protection(repository)
+    end
+
+    defp do_migrate(event, migration, repository) do
+      case run_migration(migration, event) do
+        {new_data, new_metadata} ->
+          %event_module{} = new_data
+          event_type = Atom.to_string(event_module)
+
+          {:ok, migrated_at} = DateTime.now("Europe/Berlin")
+
+          new_metadata =
+            new_metadata
+            |> Enum.into(%{})
+            |> Map.merge(%{migrated_at: migrated_at, original_event: event.data})
+
+          changeset =
+            change(event, event_type: event_type, data: new_data, metadata: new_metadata)
+
+          repository.update!(changeset)
+
+        :skip ->
+          Logger.info("Skipping event #{event.event_id}")
+
+        other ->
+          Logger.warning("Return value of '#{inspect(other)}' is not supported.")
+      end
     end
 
     defp run_migration(migration, event) when is_function(migration, 2) do
@@ -97,6 +88,16 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
         causation_id: event.causation_id,
         correlation_id: event.correlation_id
       })
+    end
+
+    defp disable_append_only_protection(repository) do
+      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_update_events")
+      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_delete_events")
+    end
+
+    defp enable_append_only_protection(repository) do
+      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_delete_events")
+      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_update_events")
     end
   end
 end

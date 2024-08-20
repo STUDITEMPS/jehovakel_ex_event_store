@@ -1,9 +1,12 @@
 defmodule Shared.EventStoreListener do
+  @moduledoc false
   use GenServer
   require Logger
+  alias Timex.Duration
   alias EventStore.RecordedEvent
 
   defmodule ErrorContext do
+    @moduledoc false
     defstruct [:error_count, :max_retries, :base_delay_in_ms]
 
     @type t :: %__MODULE__{
@@ -46,6 +49,7 @@ defmodule Shared.EventStoreListener do
   @type error_context :: ErrorContext.t()
   @type state :: map() | list()
   @type handle_result :: :ok | {:error, reason :: any()}
+  @type delay :: non_neg_integer() | Duration.t()
 
   @callback handle(domain_event(), metadata()) :: handle_result()
   @callback handle(domain_event(), metadata(), state()) :: handle_result()
@@ -56,7 +60,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:retry, delay :: non_neg_integer(), error_context :: error_context()}
+              | {:snooze, delay()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -68,7 +72,7 @@ defmodule Shared.EventStoreListener do
               error_context :: error_context()
             ) ::
               {:retry, error_context :: error_context()}
-              | {:retry, delay :: non_neg_integer(), error_context :: error_context()}
+              | {:snooze, delay()}
               | :skip
               | {:stop, reason :: term()}
 
@@ -240,22 +244,39 @@ defmodule Shared.EventStoreListener do
     %RecordedEvent{data: domain_event, metadata: metadata} = event
 
     case handler_module.on_error(error, stacktrace, domain_event, metadata, context) do
+      {:snooze, delay} ->
+        {delay_in_ms, delay_string} =
+          case delay do
+            %Duration{} ->
+              {Duration.to_milliseconds(delay, truncate: true), Duration.to_string(delay)}
+
+            d when is_integer(d) ->
+              {delay, "#{delay}ms"}
+          end
+
+        Logger.info(
+          "Snoozing #{inspect(name)} for #{delay_string} while processing event #{inspect(event)}. Reason: #{format_error(error, stacktrace)}"
+        )
+
+        Process.sleep(delay_in_ms)
+        handle_event(event, state, context)
+
       {:retry, %ErrorContext{} = context} ->
         context = ErrorContext.record_error(context)
 
         if ErrorContext.retry?(context) do
           ErrorContext.delay(context)
 
-          Logger.warn(fn ->
+          Logger.warning(
             "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}"
-          end)
+          )
 
           handle_event(event, state, context)
         else
           reason =
-            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{inspect(error)}, Stacktrace: #{inspect(stacktrace)}"
+            "#{name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{format_error(error)}. Stacktrace: #{inspect(stacktrace)}"
 
-          Logger.warn(reason)
+          Logger.warning(reason)
 
           throw({:error, reason})
         end
@@ -270,11 +291,11 @@ defmodule Shared.EventStoreListener do
       {:stop, reason} ->
         reason = "#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}"
 
-        Logger.warn(reason)
+        Logger.warning(reason)
         throw({:error, reason})
 
       error ->
-        Logger.warn(fn ->
+        Logger.warning(fn ->
           "#{name} on_error/5 returned an invalid response #{inspect(error)}"
         end)
 
@@ -309,4 +330,12 @@ defmodule Shared.EventStoreListener do
   end
 
   defp valid_subscription_key?(_), do: false
+
+  defp format_error(error, stacktrace \\ [])
+
+  defp format_error({:error, reason}, stacktrace) when is_exception(reason),
+    do: Exception.format(:error, reason, stacktrace)
+
+  defp format_error({:error, reason}, _stacktrace), do: inspect(reason)
+  defp format_error(error, _stacktrace), do: inspect(error)
 end

@@ -28,21 +28,22 @@ defimpl Shared.AppendableEvent, for: Any do
             Enum.reduce(fields_to_link, %{}, fn field, errors ->
               field_value = Map.get(event, field)
 
-              unless is_binary(field_value) do
-                Map.put(errors, field, field_value)
-              else
+              if is_binary(field_value) do
                 errors
+              else
+                Map.put(errors, field, field_value)
               end
             end)
 
           if map_size(invalid_links) > 0 do
             invalid_links =
-              invalid_links
-              |> Map.to_list()
-              |> Enum.map(fn {field, value} ->
-                "#{field} -> #{inspect(value)}"
-              end)
-              |> Enum.join(", ")
+              Enum.map_join(
+                invalid_links,
+                ", ",
+                fn {field, value} ->
+                  "#{field} -> #{inspect(value)}"
+                end
+              )
 
             raise ArgumentError,
                   "Streams ids to link need to be a string, got '#{invalid_links}'."

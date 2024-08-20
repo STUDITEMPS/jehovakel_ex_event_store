@@ -1,4 +1,6 @@
 defmodule Shared.LinkAppendableEvents do
+  @moduledoc false
+
   use GenServer
 
   def child_spec(opts) do

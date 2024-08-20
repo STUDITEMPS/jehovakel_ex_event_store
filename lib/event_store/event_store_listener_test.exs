@@ -1,6 +1,7 @@
 defmodule Shared.EventStoreListenerTest do
   use Support.EventStoreCase, async: false
   import ExUnit.CaptureLog
+  import Mock
 
   @event %Shared.EventTest.FakeEvent{}
 
@@ -41,7 +42,7 @@ defmodule Shared.EventStoreListenerTest do
 
   setup do
     old_log_level = Logger.level()
-    Logger.configure(level: :warn)
+    Logger.configure(level: :info)
 
     {:ok, _pid} = Counter.start_link(0)
 
@@ -56,7 +57,7 @@ defmodule Shared.EventStoreListenerTest do
     test "automatically on Exception during event handling without GenServer restart" do
       start_supervised!(ExampleConsumer)
 
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
 
@@ -68,7 +69,7 @@ defmodule Shared.EventStoreListenerTest do
     test "does not restart Listener process" do
       start_supervised!(ExampleConsumer)
 
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         listener_pid = Process.whereis(ExampleConsumer)
 
         {:ok, _events} =
@@ -83,7 +84,7 @@ defmodule Shared.EventStoreListenerTest do
       start_supervised!(ExampleConsumer)
 
       logs =
-        capture_log([level: :warn], fn ->
+        capture_log([level: :warning], fn ->
           listener_pid = Process.whereis(ExampleConsumer)
 
           {:ok, _events} =
@@ -125,7 +126,7 @@ defmodule Shared.EventStoreListenerTest do
       start_supervised!(ExampleConsumerWithCustomConfig)
 
       logs =
-        capture_log([level: :warn], fn ->
+        capture_log([level: :warning], fn ->
           listener_pid = Process.whereis(ExampleConsumerWithCustomConfig)
 
           {:ok, _events} =
@@ -141,13 +142,79 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleConsumerWithCustomConfig is retrying (2/2)"
       assert logs =~ "is dying due to bad event after 2 retries"
     end
+
+    test "allows to snooze on error" do
+      defmodule SnoozingConsumer do
+        use Shared.EventStoreListener,
+          subscription_key: "snoozing_consumer",
+          event_store: JehovakelEx.EventStore
+
+        @impl true
+        def handle(_event, _meta) do
+          raise RuntimeError, "Please Snooze"
+        end
+
+        @impl true
+        def on_error({:error, %RuntimeError{message: "Please Snooze"}}, _, _, _, _) do
+          {:snooze, 37}
+        end
+      end
+
+      start_supervised!(SnoozingConsumer)
+
+      test_process = self()
+
+      logs =
+        capture_log(fn ->
+          with_mock Process, [:passthrough],
+            sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
+            {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+            assert_receive {:snoozing, 37}
+          end
+        end)
+
+      assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for 37ms"
+    end
+  end
+
+  test "accepts Timex.Duration as :snooze delay" do
+    defmodule SnoozingConsumer do
+      use Shared.EventStoreListener,
+        subscription_key: "snoozing_consumer",
+        event_store: JehovakelEx.EventStore
+
+      @impl true
+      def handle(_event, _meta) do
+        raise RuntimeError, "Please Snooze"
+      end
+
+      @impl true
+      def on_error({:error, %RuntimeError{message: "Please Snooze"}}, _, _, _, _) do
+        {:snooze, Timex.Duration.from_minutes(1)}
+      end
+    end
+
+    start_supervised!(SnoozingConsumer)
+
+    test_process = self()
+
+    logs =
+      capture_log(fn ->
+        with_mock Process, [:passthrough],
+          sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
+          {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+          assert_receive {:snoozing, 60_000}
+        end
+      end)
+
+    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for PT1M"
   end
 
   test "Log Stacktrace on failing to handle exception during event handling" do
     start_supervised!(ExampleConsumer)
 
     logs =
-      capture_log([level: :warn], fn ->
+      capture_log([level: :warning], fn ->
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 4})
 

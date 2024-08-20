@@ -1,4 +1,8 @@
 defmodule Shared.EventStoreEvent do
+  @moduledoc false
+  @type event_with_metadata :: {event :: term, metadata :: map()}
+
+  @spec wrap_for_persistence(term | list(term), Enum.t()) :: list(EventStore.EventData.t())
   def wrap_for_persistence(events, metadata) do
     events = List.wrap(events)
     metadata = Enum.into(metadata, %{})
@@ -11,6 +15,7 @@ defmodule Shared.EventStoreEvent do
     end)
   end
 
+  @spec unwrap(EventStore.RecordedEvent.t()) :: event_with_metadata
   def unwrap(%EventStore.RecordedEvent{data: domain_event, metadata: metadata} = event) do
     metadata = Enum.into(metadata, %{})
 

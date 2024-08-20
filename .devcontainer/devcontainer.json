@@ -1,0 +1,22 @@
+{
+    "name": "jehovakel_ex_event_store",
+    "dockerComposeFile": [
+        "../docker-compose.yml",
+        "docker-compose.yml"
+    ],
+    "service": "devcontainer",
+    "workspaceFolder": "/workspace",
+    "onCreateCommand": ".devcontainer/bin/onCreateCommand",
+    "updateContentCommand": ".devcontainer/bin/updateContentCommand",
+    "customizations": {
+        "codespaces": {
+            "repositories": {
+                "STUDITEMPS/devcontainer-base": {
+                    "permissions": {
+                        "packages": "read"
+                    }
+                }
+            }
+        }
+    }
+}
