@@ -247,8 +247,10 @@ defmodule Shared.EventStoreListener do
       {:snooze, delay} ->
         {delay_in_ms, delay_string} =
           case delay do
-            %Duration{} ->
-              {Duration.to_milliseconds(delay, truncate: true), Duration.to_string(delay)}
+            # Wir verwenden diese Schreibweisen um die Dependency auf Timex optional zu halten.
+            %{__struct__: Duration} ->
+              {apply(Duration, :to_milliseconds, [delay, [truncate: true]]),
+               apply(Duration, :to_string, [delay])}
 
             d when is_integer(d) ->
               {delay, "#{delay}ms"}
