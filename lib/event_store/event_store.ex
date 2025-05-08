@@ -86,15 +86,17 @@ defmodule Shared.EventStore do
               | {:error, :no_event_found}
               | {:error, any()}
       def find_event(event_id) do
+        schema = EventStore.Config.lookup(@event_store_backend) |> Keyword.get(:schema, "public")
+
         with {:ok, event_uuid} <- Ecto.UUID.dump(event_id),
              {:ok, %Postgrex.Result{rows: [row]}} <-
                @repository.query(
                  """
                    select se.stream_version, e.event_id, s.stream_uuid, se.original_stream_version, e.event_type, e.correlation_id, e.causation_id, e.data, e.metadata, e.created_at
-                   from stream_events se
-                   join streams s
+                   from #{schema}.stream_events se
+                   join #{schema}.streams s
                      on s.stream_id = se.original_stream_id
-                   join events e
+                   join #{schema}.events e
                      on se.event_id = e.event_id
                    where e.event_id = $1 and se.stream_id = 0
                  """,

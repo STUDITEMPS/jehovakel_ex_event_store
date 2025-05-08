@@ -79,10 +79,10 @@ defmodule Shared.EventStoreListener do
   defmacro __using__(opts) do
     opts = opts || []
 
-    Shared.EventStoreListener.validate_using_options(opts)
-
     quote location: :keep do
       @opts unquote(opts) || []
+      Shared.EventStoreListener.validate_using_options(@opts)
+
       @name @opts[:name] || __MODULE__
 
       @behaviour Shared.EventStoreListener
