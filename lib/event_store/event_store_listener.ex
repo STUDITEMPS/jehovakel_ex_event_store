@@ -166,16 +166,14 @@ defmodule Shared.EventStoreListener do
 
   @impl true
   def handle_info({:subscribed, _subscription}, %{name: name} = state) do
-    Logger.debug(fn ->
-      "#{name} sucessfully subscribed to event store."
-    end)
+    Logger.debug("#{name} sucessfully subscribed to event store.")
 
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:events, events}, %{name: name, retry_opts: retry_opts} = state) do
-    Logger.debug(fn -> "#{name} received events: #{inspect(events)}" end)
+    Logger.debug("#{name} received events: #{inspect(events)}")
 
     try do
       Enum.each(events, fn event -> handle_event(event, state, ErrorContext.new(retry_opts)) end)
@@ -204,16 +202,12 @@ defmodule Shared.EventStoreListener do
         ack_event(event, state)
 
       {:error, reason} ->
-        Logger.error(fn ->
-          "#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}"
-        end)
+        Logger.error("#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}")
 
         handle_error({:error, reason}, current_stacktrace(), event, state, error_context)
 
       {:error, reason, stacktrace} ->
-        Logger.error(fn ->
-          "#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}"
-        end)
+        Logger.error("#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}")
 
         handle_error({:error, reason}, stacktrace, event, state, error_context)
     end
@@ -284,9 +278,7 @@ defmodule Shared.EventStoreListener do
         end
 
       :skip ->
-        Logger.debug(fn ->
-          "#{name} is skipping event #{inspect(event)}"
-        end)
+        Logger.debug("#{name} is skipping event #{inspect(event)}")
 
         ack_event(event, state)
 
@@ -297,9 +289,7 @@ defmodule Shared.EventStoreListener do
         throw({:error, reason})
 
       error ->
-        Logger.warning(fn ->
-          "#{name} on_error/5 returned an invalid response #{inspect(error)}"
-        end)
+        Logger.warning("#{name} on_error/5 returned an invalid response #{inspect(error)}")
 
         throw(error)
     end
