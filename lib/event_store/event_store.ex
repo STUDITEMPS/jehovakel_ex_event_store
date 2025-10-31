@@ -1,8 +1,10 @@
 defmodule Shared.EventStore do
   @moduledoc false
   defmacro __using__(opts \\ []) do
-    quote location: :keep, generated: true, bind_quoted: [opts: opts] do
-      use EventStore, otp_app: @otp_app
+    quote location: :keep,
+          bind_quoted: [otp_app: Keyword.fetch!(opts, :otp_app), opts: opts],
+          generated: true do
+      use EventStore, otp_app: otp_app
 
       alias Shared.EventStoreEvent
 
