@@ -1,7 +1,6 @@
 defmodule Shared.EventStoreListenerTest do
   use Support.EventStoreCase, async: false
   import ExUnit.CaptureLog
-  import Mock
 
   @event %Shared.EventTest.FakeEvent{}
 
@@ -143,7 +142,35 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "is dying due to bad event after 2 retries"
     end
 
+    test "can shutdown during retry" do
+      start_supervised!(ExampleConsumer)
+
+      logs =
+        capture_log([level: :warning], fn ->
+          listener_pid = Process.whereis(ExampleConsumer)
+
+          {:ok, _events} =
+            JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 3})
+
+          assert_receive :exception_during_event_handling
+          assert_receive :exception_during_event_handling
+          stop_supervised!(ExampleConsumer)
+
+          refute_receive :exception_during_event_handling
+
+          assert listener_pid != Process.whereis(ExampleConsumer)
+        end)
+
+      assert logs =~ "#{ExampleConsumer} failed"
+      assert logs =~ "ExampleConsumer is retrying (1/3)"
+
+      refute logs =~ "ExampleConsumer is retrying (2/3)"
+      refute logs =~ "is dying due to bad event after 3 retries"
+    end
+
     test "allows to snooze on error" do
+      test_process = self()
+
       defmodule SnoozingConsumer do
         use Shared.EventStoreListener,
           subscription_key: "snoozing_consumer",
@@ -160,21 +187,58 @@ defmodule Shared.EventStoreListenerTest do
         end
       end
 
-      start_supervised!(SnoozingConsumer)
+      {:ok, state} =
+        Shared.EventStoreListener.init(%{
+          name: SnoozingConsumer,
+          handler_module: SnoozingConsumer,
+          event_store: JehovakelEx.EventStore,
+          subscription_key: "snoozing_consumer",
+          subscription: nil,
+          start_from: :origin,
+          retry_opts: [max_retries: 3, base_delay_in_ms: 10]
+        })
 
-      test_process = self()
+      assert_receive {:subscribed, _}
+
+      {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+
+      assert_receive {:events, events}
 
       logs =
         capture_log(fn ->
-          with_mock Process, [:passthrough],
-            sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
-            {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
-            assert_receive {:snoozing, 37}
-          end
+          assert {:noreply, _state} =
+                   Shared.EventStoreListener.handle_info({:events, events}, state)
         end)
+
+      refute_received {:events, ^events}
+      assert_receive {:events, ^events}
 
       assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for 37ms"
     end
+  end
+
+  test "does graceful shutdown when GenServer is stopped" do
+    defmodule SlowConsumer do
+      use Shared.EventStoreListener,
+        subscription_key: "example_consumer",
+        event_store: JehovakelEx.EventStore
+
+      def handle(_event, meta) do
+        send(meta.test_pid, :event_handling_started)
+        Process.sleep(100)
+        send(meta.test_pid, :event_handling_done)
+        :ok
+      end
+    end
+
+    start_supervised!(SlowConsumer)
+    {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self()})
+
+    assert_receive :event_handling_started
+    stop_supervised!(SlowConsumer)
+
+    # we only receive this if the event listener is not killed immediately
+    assert_receive :event_handling_done
   end
 
   test "accepts Timex.Duration as :snooze delay" do
@@ -190,24 +254,36 @@ defmodule Shared.EventStoreListenerTest do
 
       @impl true
       def on_error({:error, %RuntimeError{message: "Please Snooze"}}, _, _, _, _) do
-        {:snooze, Timex.Duration.from_minutes(1)}
+        {:snooze, Timex.Duration.from_milliseconds(30)}
       end
     end
 
-    start_supervised!(SnoozingConsumer)
+    {:ok, state} =
+      Shared.EventStoreListener.init(%{
+        name: SnoozingConsumer,
+        handler_module: SnoozingConsumer,
+        event_store: JehovakelEx.EventStore,
+        subscription_key: "snoozing_consumer",
+        subscription: nil,
+        start_from: :origin,
+        retry_opts: [max_retries: 3, base_delay_in_ms: 10]
+      })
 
-    test_process = self()
+    assert_receive {:subscribed, _}
+
+    {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
+    assert_receive {:events, events}
 
     logs =
       capture_log(fn ->
-        with_mock Process, [:passthrough],
-          sleep: fn snooze_time -> send(test_process, {:snoozing, snooze_time}) end do
-          {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{})
-          assert_receive {:snoozing, 60_000}
-        end
+        assert {:noreply, _state} =
+                 Shared.EventStoreListener.handle_info({:events, events}, state)
       end)
 
-    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for PT1M"
+    refute_received {:events, ^events}
+    assert_receive {:events, ^events}
+
+    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for PT0.03S"
   end
 
   test "Log Stacktrace on failing to handle exception during event handling" do
