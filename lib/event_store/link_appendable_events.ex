@@ -36,10 +36,7 @@ defmodule Shared.LinkAppendableEvents do
   end
 
   # Event notification
-  def handle_info(
-        {:events, events},
-        %{subscription: subscription, event_store: event_store} = state
-      ) do
+  def handle_info({:events, events}, %{subscription: subscription, event_store: event_store} = state) do
     link_appendable_events(event_store, subscription, events)
 
     {:noreply, state}
@@ -51,11 +48,7 @@ defmodule Shared.LinkAppendableEvents do
     end
   end
 
-  defp link_appendable_event(
-         event_store,
-         subscription,
-         %EventStore.RecordedEvent{} = eventstore_event
-       ) do
+  defp link_appendable_event(event_store, subscription, %EventStore.RecordedEvent{} = eventstore_event) do
     event = eventstore_event.data
 
     if Shared.AppendableEvent.impl_for(event) do

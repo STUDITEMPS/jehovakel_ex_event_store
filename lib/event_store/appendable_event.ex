@@ -22,7 +22,7 @@ defimpl Shared.AppendableEvent, for: Any do
         end
 
         def streams_to_link(event) do
-          fields_to_link = Keyword.get(unquote(options), :streams_to_link, []) |> List.wrap()
+          fields_to_link = unquote(options) |> Keyword.get(:streams_to_link, []) |> List.wrap()
 
           invalid_links =
             Enum.reduce(fields_to_link, %{}, fn field, errors ->
@@ -49,7 +49,7 @@ defimpl Shared.AppendableEvent, for: Any do
                   "Streams ids to link need to be a string, got '#{invalid_links}'."
           end
 
-          Map.take(event, fields_to_link) |> Map.values()
+          event |> Map.take(fields_to_link) |> Map.values()
         end
       end
     end

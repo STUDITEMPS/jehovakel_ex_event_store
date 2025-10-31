@@ -1,14 +1,17 @@
 defmodule Shared.EventStoreListenerTest do
   use Support.EventStoreCase, async: false
+
   import ExUnit.CaptureLog
 
   @event %Shared.EventTest.FakeEvent{}
 
   defmodule EventHandlingError do
+    @moduledoc false
     defexception [:message]
   end
 
   defmodule Counter do
+    @moduledoc false
     use Agent
 
     def start_link(initial_value) do
@@ -21,6 +24,7 @@ defmodule Shared.EventStoreListenerTest do
   end
 
   defmodule ExampleConsumer do
+    @moduledoc false
     use Shared.EventStoreListener,
       subscription_key: "example_consumer",
       event_store: JehovakelEx.EventStore
@@ -103,6 +107,7 @@ defmodule Shared.EventStoreListenerTest do
 
     test "allows to configure retry behaviour" do
       defmodule ExampleConsumerWithCustomConfig do
+        @moduledoc false
         use Shared.EventStoreListener,
           subscription_key: "example_consumer_with_custom_config",
           event_store: JehovakelEx.EventStore,
@@ -172,6 +177,7 @@ defmodule Shared.EventStoreListenerTest do
       test_process = self()
 
       defmodule SnoozingConsumer do
+        @moduledoc false
         use Shared.EventStoreListener,
           subscription_key: "snoozing_consumer",
           event_store: JehovakelEx.EventStore
@@ -219,6 +225,7 @@ defmodule Shared.EventStoreListenerTest do
 
   test "does graceful shutdown when GenServer is stopped" do
     defmodule SlowConsumer do
+      @moduledoc false
       use Shared.EventStoreListener,
         subscription_key: "example_consumer",
         event_store: JehovakelEx.EventStore
@@ -243,6 +250,7 @@ defmodule Shared.EventStoreListenerTest do
 
   test "accepts Timex.Duration as :snooze delay" do
     defmodule SnoozingConsumer do
+      @moduledoc false
       use Shared.EventStoreListener,
         subscription_key: "snoozing_consumer",
         event_store: JehovakelEx.EventStore
@@ -306,6 +314,7 @@ defmodule Shared.EventStoreListenerTest do
 
   test "can configure custom restart option for the child spec" do
     defmodule TemporaryRestartConsumer do
+      @moduledoc false
       use Shared.EventStoreListener,
         subscription_key: "example_consumer",
         event_store: JehovakelEx.EventStore,
@@ -323,6 +332,7 @@ defmodule Shared.EventStoreListenerTest do
     test "raises if subscription_key is missing" do
       assert_raise(RuntimeError, "subscription_key is required since v3.0", fn ->
         defmodule MissingSubscriptionKey do
+          @moduledoc false
           use Shared.EventStoreListener,
             event_store: JehovakelEx.EventStore
         end
@@ -335,6 +345,7 @@ defmodule Shared.EventStoreListenerTest do
         "Event Store(event_store: My.EventStore) configuration is missing",
         fn ->
           defmodule MissingEventStore do
+            @moduledoc false
             use Shared.EventStoreListener,
               subscription_key: "example_consumer"
           end

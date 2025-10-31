@@ -1,8 +1,10 @@
 defmodule Shared.EventStoreListener do
   @moduledoc false
   use GenServer
-  require Logger
+
   alias EventStore.RecordedEvent
+
+  require Logger
 
   defmodule ErrorContext do
     @moduledoc false
@@ -30,11 +32,7 @@ defmodule Shared.EventStoreListener do
       error_count - 1
     end
 
-    def delay(%__MODULE__{
-          error_count: error_count,
-          max_retries: max_retries,
-          base_delay_in_ms: base_delay_in_ms
-        })
+    def delay(%__MODULE__{error_count: error_count, max_retries: max_retries, base_delay_in_ms: base_delay_in_ms})
         when error_count <= max_retries do
       # Exponential backoff
       round(:math.pow(2, error_count) * base_delay_in_ms)
@@ -120,8 +118,7 @@ defmodule Shared.EventStoreListener do
       def handle(event, metadata, _state), do: handle(event, metadata)
       defoverridable handle: 3
 
-      def on_error({:error, reason}, _event, _metadata, error_context),
-        do: {:retry, error_context}
+      def on_error({:error, reason}, _event, _metadata, error_context), do: {:retry, error_context}
 
       defoverridable on_error: 4
 
@@ -176,9 +173,7 @@ defmodule Shared.EventStoreListener do
   end
 
   def handle_info({:events, [event]}, %{name: name, error_context: context} = state) do
-    Logger.warning(
-      "#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}"
-    )
+    Logger.warning("#{name} is retrying (#{context.error_count}/#{context.max_retries}) failed event #{inspect(event)}")
 
     handle_event(event, state, context)
   end
@@ -196,11 +191,7 @@ defmodule Shared.EventStoreListener do
       do: handler_module.terminate(reason, state)
   end
 
-  defp handle_event(
-         %RecordedEvent{} = event,
-         %{handler_module: handler_module} = state,
-         %ErrorContext{} = error_context
-       ) do
+  defp handle_event(%RecordedEvent{} = event, %{handler_module: handler_module} = state, %ErrorContext{} = error_context) do
     {domain_event, metadata} = Shared.EventStoreEvent.unwrap(event)
     handler_module.handle(domain_event, metadata, state)
   rescue
@@ -327,15 +318,11 @@ defmodule Shared.EventStoreListener do
 
   # Wir verwenden diese Schreibweisen um die Dependency auf Timex optional zu halten.
   defp unify_delay(%{__struct__: Timex.Duration} = delay) do
-    {apply(Timex.Duration, :to_milliseconds, [delay, [truncate: true]]),
-     apply(Timex.Duration, :to_string, [delay])}
+    {apply(Timex.Duration, :to_milliseconds, [delay, [truncate: true]]), apply(Timex.Duration, :to_string, [delay])}
   end
 
   if function_exported?(Kernel, :to_timeout, 1) do
-    defp unify_delay(delay)
-         when is_list(delay)
-         when is_integer(delay)
-         when is_struct(delay, Duration) do
+    defp unify_delay(delay) when is_list(delay) when is_integer(delay) when is_struct(delay, Duration) do
       t = to_timeout(delay)
       {t, "#{t}ms"}
     end

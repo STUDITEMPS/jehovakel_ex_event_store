@@ -2,25 +2,24 @@ defmodule Shared.EventStore do
   @moduledoc false
   defmacro __using__(opts \\ []) do
     quote location: :keep, generated: true, bind_quoted: [opts: opts] do
+      use EventStore, otp_app: @otp_app
+
+      alias Shared.EventStoreEvent
+
+      require Logger
+
       @event_store_backend __MODULE__
 
       @otp_app Keyword.fetch!(opts, :otp_app)
-      use EventStore, otp_app: @otp_app
-
       @repository Keyword.get(opts, :repo) ||
                     (case(Application.compile_env(@otp_app, :ecto_repos)) do
                        [repo] ->
                          repo
 
                        _ ->
-                         IO.warn(
-                           ":repo option required if you want to wrap append_event in a transaction."
-                         )
+                         IO.warn(":repo option required if you want to wrap append_event in a transaction.")
                      end)
       @use_shared_connection Keyword.get(opts, :use_shared_connection, true)
-
-      alias Shared.EventStoreEvent
-      require Logger
 
       @spec append_event(list(struct()) | struct(), keyword | map) ::
               {:ok, list(EventStore.EventData.t())}
@@ -39,12 +38,8 @@ defmodule Shared.EventStore do
 
       @spec append_event(String.t(), list(struct()) | struct(), keyword | map) ::
               {:ok, list(EventStore.EventData.t())}
-      def append_event(
-            stream_uuid,
-            domain_events,
-            metadata
-          ) do
-        persisted_events = domain_events |> EventStoreEvent.wrap_for_persistence(metadata)
+      def append_event(stream_uuid, domain_events, metadata) do
+        persisted_events = EventStoreEvent.wrap_for_persistence(domain_events, metadata)
 
         case @event_store_backend.append_to_stream(stream_uuid, :any_version, persisted_events,
                conn: current_connection(@repository, @use_shared_connection)
@@ -60,8 +55,7 @@ defmodule Shared.EventStore do
 
       @spec append_events(String.t(), list(struct()) | struct(), keyword | map) ::
               {:ok, list(EventStore.EventData.t())}
-      def append_events(stream_uuid, domain_events, metadata),
-        do: append_event(stream_uuid, domain_events, metadata)
+      def append_events(stream_uuid, domain_events, metadata), do: append_event(stream_uuid, domain_events, metadata)
 
       @spec all_events(String.t(), keyword()) ::
               list(Shared.EventStoreEvent.event_with_metadata())
@@ -131,7 +125,7 @@ defmodule Shared.EventStore do
           logged_event = Shared.LoggableEvent.to_log(event)
 
           Logger.info(fn ->
-            "Appended event stream_uuid=#{stream_uuid} event=[#{logged_event}] metadata=#{metadata |> inspect()}"
+            "Appended event stream_uuid=#{stream_uuid} event=[#{logged_event}] metadata=#{inspect(metadata)}"
           end)
         end)
       end

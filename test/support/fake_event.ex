@@ -15,7 +15,7 @@ end
 
 defimpl Shared.AppendableEvent, for: Shared.EventTest.FakeEvent do
   def stream_id(event) do
-    event.some |> Atom.to_string()
+    Atom.to_string(event.some)
   end
 
   def streams_to_link(_event), do: []

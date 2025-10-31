@@ -48,7 +48,8 @@ defmodule Shared.MixProject do
       {:timex, "~> 3.7", optional: true},
       {:mock, "~> 0.3.0", only: :test, optional: true},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false, optional: true},
-      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false, optional: true}
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false, optional: true},
+      {:styler, "~> 0.7", only: [:dev, :test], runtime: false, optional: true}
     ]
   end
 

@@ -1,8 +1,10 @@
 defmodule Shared.AppendableEventTest do
   use ExUnit.Case, async: true
+
   require Protocol
 
   defmodule Event do
+    @moduledoc false
     defstruct [:a, :b, :c, :d]
   end
 

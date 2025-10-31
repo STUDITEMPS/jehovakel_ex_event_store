@@ -1,8 +1,10 @@
 defmodule Shared.EventStoreEventTest do
   use ExUnit.Case, async: true
+
   alias Shared.EventStoreEvent, as: Event
 
   defmodule TestEvent do
+    @moduledoc false
     defstruct foo: "bar"
   end
 

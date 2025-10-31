@@ -1,27 +1,33 @@
 defmodule Shared.LoggableEventTest do
   use ExUnit.Case, async: true
+
   require Protocol
 
   defmodule EventA do
+    @moduledoc false
     defstruct [:a, :b, :c, :d]
   end
 
   defmodule EventB do
+    @moduledoc false
     @derive [{Shared.LoggableEvent, only: [:a, :c]}]
     defstruct [:a, :b, :c, :d]
   end
 
   defmodule EventC do
+    @moduledoc false
     @derive [{Shared.LoggableEvent, except: [:a, :c]}]
     defstruct [:a, :b, :c, :d]
   end
 
   defmodule EventD do
+    @moduledoc false
     @derive [{Shared.LoggableEvent, :all}]
     defstruct [:a, :b, :c, :d]
   end
 
   defmodule Strct do
+    @moduledoc false
     defstruct attr: :brr
   end
 

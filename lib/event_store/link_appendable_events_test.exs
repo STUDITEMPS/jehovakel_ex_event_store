@@ -2,6 +2,7 @@ defmodule Shared.LinkAppendableEventsTest do
   use Support.EventStoreCase, async: false
 
   defmodule TestEvent do
+    @moduledoc false
     @derive {Shared.AppendableEvent, stream_id: :a, streams_to_link: :b}
     defstruct [:a, :b, :c, :d]
   end
@@ -39,9 +40,7 @@ defmodule Shared.LinkAppendableEventsTest do
 
     Postgrex.query!(postgrex, "DELETE FROM subscriptions WHERE true", [])
 
-    start_supervised!(
-      {Shared.LinkAppendableEvents, event_store: JehovakelEx.EventStore, subscription_name: "FOO"}
-    )
+    start_supervised!({Shared.LinkAppendableEvents, event_store: JehovakelEx.EventStore, subscription_name: "FOO"})
 
     wait_until(fn ->
       assert %{num_rows: 1, rows: [[1]]} =

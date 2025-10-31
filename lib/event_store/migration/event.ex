@@ -5,8 +5,10 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
     auf Staging getestet sind, bevor du diese auf Production loslässt!!!
     """
     use Ecto.Schema
-    import Ecto.Query
+
     import Ecto.Changeset
+    import Ecto.Query
+
     require Logger
 
     @primary_key {:event_id, :binary_id, autogenerate: false}
@@ -60,7 +62,7 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
 
           new_metadata =
             new_metadata
-            |> Enum.into(%{})
+            |> Map.new()
             |> Map.merge(%{migrated_at: migrated_at, original_event: event.data})
 
           changeset =
