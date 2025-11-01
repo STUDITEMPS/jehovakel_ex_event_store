@@ -3,7 +3,10 @@ defmodule Shared.EventStoreListenerTest do
 
   import ExUnit.CaptureLog
 
-  @event %Shared.EventTest.FakeEvent{}
+  alias Shared.EventStoreListener.HandleMissingError
+  alias Shared.EventTest.FakeEvent
+
+  @event %FakeEvent{}
 
   defmodule EventHandlingError do
     @moduledoc false
@@ -54,6 +57,99 @@ defmodule Shared.EventStoreListenerTest do
     end)
 
     :ok
+  end
+
+  describe "Event Handling" do
+    test "" do
+      assert_raise HandleMissingError, fn ->
+        defmodule IncompleteListener do
+          @moduledoc false
+          use Shared.EventStoreListener,
+            subscription_key: "incomplete_listener",
+            event_store: JehovakelEx.EventStore
+        end
+      end
+    end
+
+    test "EventListener can implement only handle/2" do
+      defmodule Handle2Listener do
+        @moduledoc false
+        use Shared.EventStoreListener,
+          subscription_key: "handle2_listener",
+          event_store: JehovakelEx.EventStore
+
+        def handle(_event, %{test_pid: test_pid}) do
+          send(test_pid, :event_handled_successfully)
+          :ok
+        end
+      end
+
+      start_supervised!(Handle2Listener)
+
+      JehovakelEx.EventStore.append_event(@event, %{test_pid: self()})
+      assert_receive :event_handled_successfully
+    end
+
+    test "EventListener can implement only handle/3" do
+      defmodule Handle3Listener do
+        @moduledoc false
+        use Shared.EventStoreListener,
+          subscription_key: "handle3_listener",
+          event_store: JehovakelEx.EventStore
+
+        def handle(_event, %{test_pid: test_pid}, state) do
+          send(test_pid, {:event_handled_successfully, state})
+          :ok
+        end
+      end
+
+      start_supervised!(Handle3Listener)
+
+      JehovakelEx.EventStore.append_event(@event, %{test_pid: self()})
+      assert_receive {:event_handled_successfully, _state}
+    end
+
+    test "EventListener add catch all fallback for handle/2" do
+      defmodule Handle2FallbackListener do
+        @moduledoc false
+        use Shared.EventStoreListener,
+          subscription_key: "handle2_fallback_listener",
+          event_store: JehovakelEx.EventStore
+
+        def handle(%FakeEvent{some: :default}, %{test_pid: test_pid}) do
+          send(test_pid, :event_handled_successfully)
+          :ok
+        end
+      end
+
+      start_supervised!(Handle2FallbackListener)
+
+      JehovakelEx.EventStore.append_event(%FakeEvent{some: :default}, %{test_pid: self()})
+      assert_receive :event_handled_successfully
+      JehovakelEx.EventStore.append_event(%FakeEvent{some: :custom_value}, %{test_pid: self()})
+      refute_receive :event_handled_successfully
+    end
+
+    test "EventListener add catch all fallback for handle/3" do
+      defmodule Handle3FallbackListener do
+        @moduledoc false
+        use Shared.EventStoreListener,
+          subscription_key: "handle3_fallback_listener",
+          event_store: JehovakelEx.EventStore
+
+        def handle(%FakeEvent{some: :default}, %{test_pid: test_pid}, state) do
+          send(test_pid, {:event_handled_successfully, state})
+          :ok
+        end
+      end
+
+      start_supervised!(Handle3FallbackListener)
+
+      JehovakelEx.EventStore.append_event(%FakeEvent{some: :default}, %{test_pid: self()})
+      assert_receive {:event_handled_successfully, _state}
+      JehovakelEx.EventStore.append_event(%FakeEvent{some: :custom_value}, %{test_pid: self()})
+      refute_receive {:event_handled_successfully, _state}
+    end
   end
 
   describe "Retry" do

@@ -39,6 +39,13 @@ defmodule Shared.EventStoreListener do
     end
   end
 
+  defmodule HandleMissingError do
+    @moduledoc false
+    defexception [:module]
+
+    def message(%__MODULE__{module: m}), do: "Listener #{inspect(m)} does not implement handle/2 or handle/3"
+  end
+
   @type domain_event :: struct()
   @type metadata :: map()
   @type error_context :: ErrorContext.t()
@@ -83,7 +90,7 @@ defmodule Shared.EventStoreListener do
 
   @callback terminate(reason :: term(), state :: term()) :: term()
 
-  @optional_callbacks init: 1, handle: 2, handle: 3, on_error: 4, on_error: 5, terminate: 2
+  @optional_callbacks init: 1, terminate: 2
 
   defmacro __using__(opts) do
     opts = opts || []
@@ -95,6 +102,8 @@ defmodule Shared.EventStoreListener do
       @name @opts[:name] || __MODULE__
 
       @before_compile {Shared.EventStoreListener, :_check_handler}
+      @before_compile {Shared.EventStoreListener, :_add_on_error_fallbacks}
+
       @behaviour Shared.EventStoreListener
 
       def start_link(opts \\ []) do
@@ -112,12 +121,6 @@ defmodule Shared.EventStoreListener do
 
         Supervisor.child_spec(default, [])
       end
-    end
-  end
-
-  defmacro _check_handler(env) do
-    unless Module.defines?(env.module, {:handle, 3}) or Module.defines?(env.module, {:handle, 2}) do
-      raise "Handler module #{inspect(env.module)} must implement handle/2 or handle/3"
     end
   end
 
@@ -184,6 +187,29 @@ defmodule Shared.EventStoreListener do
       do: handler_module.terminate(reason, state)
   end
 
+  defmacro _check_handler(env) do
+    unless Module.defines?(env.module, {:handle, 3}) or Module.defines?(env.module, {:handle, 2}) do
+      raise HandleMissingError, module: env.module
+    end
+
+    # Add fallbacks that just skip the event. This way the user kann just
+    # pattern match on the events they want to handle.
+    quote do
+      def handle(event, metadata, state), do: handle(event, metadata)
+      def handle(event, metadata), do: :ok
+    end
+  end
+
+  defmacro _add_on_error_fallbacks(_env) do
+    # Add fallbacks that just skip the error. This way the user kann just
+    # pattern match on the errors they want to handle differently.
+    quote do
+      def on_error(_error, _event, _metadata, error_context), do: {:retry, error_context}
+
+      def on_error(error, stacktrace, event, metadata, error_context), do: on_error(error, event, metadata, error_context)
+    end
+  end
+
   defp init(handler_module, state) do
     if function_exported?(handler_module, :init, 1),
       do: handler_module.init(state),
@@ -192,14 +218,7 @@ defmodule Shared.EventStoreListener do
 
   defp handle_event(%RecordedEvent{} = event, %{handler_module: handler_module} = state, %ErrorContext{} = error_context) do
     {domain_event, metadata} = Shared.EventStoreEvent.unwrap(event)
-
-    cond do
-      function_exported?(handler_module, :handle, 3) ->
-        handler_module.handle(domain_event, metadata, state)
-
-      function_exported?(handler_module, :handle, 2) ->
-        handler_module.handle(domain_event, metadata)
-    end
+    handler_module.handle(domain_event, metadata, state)
   rescue
     error -> handle_error({:error, error}, __STACKTRACE__, event, state, error_context)
   catch
@@ -219,19 +238,7 @@ defmodule Shared.EventStoreListener do
        ) do
     Logger.error("#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}")
 
-    result =
-      cond do
-        function_exported?(handler_module, :on_error, 5) ->
-          handler_module.on_error(error, stacktrace, domain_event, metadata, context)
-
-        function_exported?(handler_module, :on_error, 4) ->
-          handler_module.on_error(error, domain_event, metadata, context)
-
-        true ->
-          {:retry, context}
-      end
-
-    case result do
+    case handler_module.on_error(error, stacktrace, domain_event, metadata, context) do
       {:snooze, delay} ->
         handle_snooze(event, delay, error, stacktrace, state)
 
