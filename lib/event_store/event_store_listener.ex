@@ -53,8 +53,11 @@ defmodule Shared.EventStoreListener do
     @type delay :: non_neg_integer() | Timex.Duration.t()
   end
 
+  @callback init(state()) :: {:ok, state()} | {:error, reason :: any()}
+
   @callback handle(domain_event(), metadata()) :: handle_result()
   @callback handle(domain_event(), metadata(), state()) :: handle_result()
+
   @callback on_error(
               error :: term(),
               failed_event :: domain_event(),
@@ -80,7 +83,7 @@ defmodule Shared.EventStoreListener do
 
   @callback terminate(reason :: term(), state :: term()) :: term()
 
-  @optional_callbacks terminate: 2
+  @optional_callbacks init: 1, handle: 2, handle: 3, on_error: 4, on_error: 5, terminate: 2
 
   defmacro __using__(opts) do
     opts = opts || []
@@ -91,6 +94,7 @@ defmodule Shared.EventStoreListener do
       @opts unquote(opts) || []
       @name @opts[:name] || __MODULE__
 
+      @before_compile {Shared.EventStoreListener, :_check_handler}
       @behaviour Shared.EventStoreListener
 
       def start_link(opts \\ []) do
@@ -108,28 +112,17 @@ defmodule Shared.EventStoreListener do
 
         Supervisor.child_spec(default, [])
       end
+    end
+  end
 
-      def init(state), do: {:ok, state}
-      defoverridable init: 1
-
-      def handle(_event, _metadata), do: :ok
-      defoverridable handle: 2
-
-      def handle(event, metadata, _state), do: handle(event, metadata)
-      defoverridable handle: 3
-
-      def on_error({:error, reason}, _event, _metadata, error_context), do: {:retry, error_context}
-
-      defoverridable on_error: 4
-
-      def on_error(error, _stacktrace, event, metadata, error_context),
-        do: on_error(error, event, metadata, error_context)
-
-      defoverridable on_error: 5
+  defmacro _check_handler(env) do
+    unless Module.defines?(env.module, {:handle, 3}) or Module.defines?(env.module, {:handle, 2}) do
+      raise "Handler module #{inspect(env.module)} must implement handle/2 or handle/3"
     end
   end
 
   def start_link(name, handler_module, opts) do
+    # We use function_exported?/2 so it's important to make sure the module is loaded.
     Code.ensure_loaded!(handler_module)
 
     default_opts = %{
@@ -150,7 +143,7 @@ defmodule Shared.EventStoreListener do
   def init(%{handler_module: handler_module} = state) do
     Process.flag(:trap_exit, true)
 
-    with {:ok, new_state} <- handler_module.init(state),
+    with {:ok, new_state} <- init(handler_module, state),
          {:ok, new_state} <- subscribe(new_state) do
       {:ok, Map.put(new_state, :error_context, nil)}
     end
@@ -191,9 +184,22 @@ defmodule Shared.EventStoreListener do
       do: handler_module.terminate(reason, state)
   end
 
+  defp init(handler_module, state) do
+    if function_exported?(handler_module, :init, 1),
+      do: handler_module.init(state),
+      else: {:ok, state}
+  end
+
   defp handle_event(%RecordedEvent{} = event, %{handler_module: handler_module} = state, %ErrorContext{} = error_context) do
     {domain_event, metadata} = Shared.EventStoreEvent.unwrap(event)
-    handler_module.handle(domain_event, metadata, state)
+
+    cond do
+      function_exported?(handler_module, :handle, 3) ->
+        handler_module.handle(domain_event, metadata, state)
+
+      function_exported?(handler_module, :handle, 2) ->
+        handler_module.handle(domain_event, metadata)
+    end
   rescue
     error -> handle_error({:error, error}, __STACKTRACE__, event, state, error_context)
   catch
@@ -213,7 +219,19 @@ defmodule Shared.EventStoreListener do
        ) do
     Logger.error("#{name} failed to handle event #{inspect(event)} due to #{inspect(reason)}")
 
-    case handler_module.on_error(error, stacktrace, domain_event, metadata, context) do
+    result =
+      cond do
+        function_exported?(handler_module, :on_error, 5) ->
+          handler_module.on_error(error, stacktrace, domain_event, metadata, context)
+
+        function_exported?(handler_module, :on_error, 4) ->
+          handler_module.on_error(error, domain_event, metadata, context)
+
+        true ->
+          {:retry, context}
+      end
+
+    case result do
       {:snooze, delay} ->
         handle_snooze(event, delay, error, stacktrace, state)
 
