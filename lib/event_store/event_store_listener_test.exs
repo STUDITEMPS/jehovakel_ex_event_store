@@ -26,10 +26,10 @@ defmodule Shared.EventStoreListenerTest do
     end
   end
 
-  defmodule ExampleConsumer do
+  defmodule ExampleListener do
     @moduledoc false
     use Shared.EventStoreListener,
-      subscription_key: "example_consumer",
+      subscription_key: "example_listener",
       event_store: JehovakelEx.EventStore
 
     def handle(_event, %{test_pid: test_pid, raise_until: raise_until}) do
@@ -154,7 +154,7 @@ defmodule Shared.EventStoreListenerTest do
 
   describe "Retry" do
     test "automatically on Exception during event handling without GenServer restart" do
-      start_supervised!(ExampleConsumer)
+      start_supervised!(ExampleListener)
 
       capture_log([level: :warning], fn ->
         {:ok, _events} =
@@ -166,25 +166,25 @@ defmodule Shared.EventStoreListenerTest do
     end
 
     test "does not restart Listener process" do
-      start_supervised!(ExampleConsumer)
+      start_supervised!(ExampleListener)
 
       capture_log([level: :warning], fn ->
-        listener_pid = Process.whereis(ExampleConsumer)
+        listener_pid = Process.whereis(ExampleListener)
 
         {:ok, _events} =
           JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
 
         assert_receive :event_handled_successfully, 500
-        assert listener_pid == Process.whereis(ExampleConsumer)
+        assert listener_pid == Process.whereis(ExampleListener)
       end)
     end
 
     test "stops EventStoreListener GenServer after 3 attempts" do
-      start_supervised!(ExampleConsumer)
+      start_supervised!(ExampleListener)
 
       logs =
         capture_log([level: :warning], fn ->
-          listener_pid = Process.whereis(ExampleConsumer)
+          listener_pid = Process.whereis(ExampleListener)
 
           {:ok, _events} =
             JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 3})
@@ -192,20 +192,20 @@ defmodule Shared.EventStoreListenerTest do
           assert_receive :exception_during_event_handling
           assert_receive :event_handled_successfully, 500
 
-          assert listener_pid != Process.whereis(ExampleConsumer)
+          assert listener_pid != Process.whereis(ExampleListener)
         end)
 
-      assert logs =~ "ExampleConsumer is retrying (1/3)"
-      assert logs =~ "ExampleConsumer is retrying (2/3)"
-      assert logs =~ "ExampleConsumer is retrying (3/3)"
+      assert logs =~ "ExampleListener is retrying (1/3)"
+      assert logs =~ "ExampleListener is retrying (2/3)"
+      assert logs =~ "ExampleListener is retrying (3/3)"
       assert logs =~ "is dying due to bad event after 3 retries"
     end
 
     test "allows to configure retry behaviour" do
-      defmodule ExampleConsumerWithCustomConfig do
+      defmodule ExampleListenerWithCustomConfig do
         @moduledoc false
         use Shared.EventStoreListener,
-          subscription_key: "example_consumer_with_custom_config",
+          subscription_key: "example_listener_with_custom_config",
           event_store: JehovakelEx.EventStore,
           retry_opts: [max_retries: 2, base_delay_in_ms: 8]
 
@@ -223,11 +223,11 @@ defmodule Shared.EventStoreListenerTest do
         end
       end
 
-      start_supervised!(ExampleConsumerWithCustomConfig)
+      start_supervised!(ExampleListenerWithCustomConfig)
 
       logs =
         capture_log([level: :warning], fn ->
-          listener_pid = Process.whereis(ExampleConsumerWithCustomConfig)
+          listener_pid = Process.whereis(ExampleListenerWithCustomConfig)
 
           {:ok, _events} =
             JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 3})
@@ -235,47 +235,47 @@ defmodule Shared.EventStoreListenerTest do
           assert_receive :exception_during_event_handling
           assert_receive :event_handled_successfully, 800
 
-          assert listener_pid != Process.whereis(ExampleConsumerWithCustomConfig)
+          assert listener_pid != Process.whereis(ExampleListenerWithCustomConfig)
         end)
 
-      assert logs =~ "ExampleConsumerWithCustomConfig is retrying (1/2)"
-      assert logs =~ "ExampleConsumerWithCustomConfig is retrying (2/2)"
+      assert logs =~ "ExampleListenerWithCustomConfig is retrying (1/2)"
+      assert logs =~ "ExampleListenerWithCustomConfig is retrying (2/2)"
       assert logs =~ "is dying due to bad event after 2 retries"
     end
 
     test "can shutdown during retry" do
-      start_supervised!(ExampleConsumer)
+      start_supervised!(ExampleListener)
 
       logs =
         capture_log([level: :warning], fn ->
-          listener_pid = Process.whereis(ExampleConsumer)
+          listener_pid = Process.whereis(ExampleListener)
 
           {:ok, _events} =
             JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 3})
 
           assert_receive :exception_during_event_handling
           assert_receive :exception_during_event_handling
-          stop_supervised!(ExampleConsumer)
+          stop_supervised!(ExampleListener)
 
           refute_receive :exception_during_event_handling
 
-          assert listener_pid != Process.whereis(ExampleConsumer)
+          assert listener_pid != Process.whereis(ExampleListener)
         end)
 
-      assert logs =~ "#{ExampleConsumer} failed"
-      assert logs =~ "ExampleConsumer is retrying (1/3)"
+      assert logs =~ "#{ExampleListener} failed"
+      assert logs =~ "ExampleListener is retrying (1/3)"
 
-      refute logs =~ "ExampleConsumer is retrying (2/3)"
+      refute logs =~ "ExampleListener is retrying (2/3)"
       refute logs =~ "is dying due to bad event after 3 retries"
     end
 
     test "allows to snooze on error" do
       test_process = self()
 
-      defmodule SnoozingConsumer do
+      defmodule SnoozingListener do
         @moduledoc false
         use Shared.EventStoreListener,
-          subscription_key: "snoozing_consumer",
+          subscription_key: "snoozing_listener",
           event_store: JehovakelEx.EventStore
 
         @impl true
@@ -291,10 +291,10 @@ defmodule Shared.EventStoreListenerTest do
 
       {:ok, state} =
         Shared.EventStoreListener.init(%{
-          name: SnoozingConsumer,
-          handler_module: SnoozingConsumer,
+          name: SnoozingListener,
+          handler_module: SnoozingListener,
           event_store: JehovakelEx.EventStore,
-          subscription_key: "snoozing_consumer",
+          subscription_key: "snoozing_listener",
           subscription: nil,
           start_from: :origin,
           retry_opts: [max_retries: 3, base_delay_in_ms: 10]
@@ -315,15 +315,15 @@ defmodule Shared.EventStoreListenerTest do
       refute_received {:events, ^events}
       assert_receive {:events, ^events}
 
-      assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for 37ms"
+      assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingListener for 37ms"
     end
   end
 
   test "does graceful shutdown when GenServer is stopped" do
-    defmodule SlowConsumer do
+    defmodule SlowListener do
       @moduledoc false
       use Shared.EventStoreListener,
-        subscription_key: "example_consumer",
+        subscription_key: "slow_listener",
         event_store: JehovakelEx.EventStore
 
       def handle(_event, meta) do
@@ -334,21 +334,43 @@ defmodule Shared.EventStoreListenerTest do
       end
     end
 
-    start_supervised!(SlowConsumer)
+    start_supervised!(SlowListener)
     {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self()})
 
     assert_receive :event_handling_started
-    stop_supervised!(SlowConsumer)
-
+    stop_supervised!(SlowListener)
     # we only receive this if the event listener is not killed immediately
     assert_receive :event_handling_done
   end
 
+  test "ignores normal exits" do
+    {:ok, pid} = ExampleListener.start_link([])
+
+    Process.exit(pid, :normal)
+
+    {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
+    assert_receive :event_handled_successfully
+    Process.exit(pid, :kill)
+  end
+
+  test "stops on abnormal exits of non parent process" do
+    {:ok, pid} = ExampleListener.start_link([])
+    Process.unlink(pid)
+    Process.monitor(pid)
+
+    # The Genserver handles exits from the parent process automatically with calling terminate/2
+    spawn(fn -> Process.exit(pid, :halt_stop) end)
+
+    {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
+    refute_receive :event_handled_successfully
+    assert_receive {:DOWN, _ref, :process, ^pid, :halt_stop}
+  end
+
   test "accepts Timex.Duration as :snooze delay" do
-    defmodule SnoozingConsumer do
+    defmodule SnoozingDurationListener do
       @moduledoc false
       use Shared.EventStoreListener,
-        subscription_key: "snoozing_consumer",
+        subscription_key: "snoozing_listener",
         event_store: JehovakelEx.EventStore
 
       @impl true
@@ -364,10 +386,10 @@ defmodule Shared.EventStoreListenerTest do
 
     {:ok, state} =
       Shared.EventStoreListener.init(%{
-        name: SnoozingConsumer,
-        handler_module: SnoozingConsumer,
+        name: SnoozingDurationListener,
+        handler_module: SnoozingDurationListener,
         event_store: JehovakelEx.EventStore,
-        subscription_key: "snoozing_consumer",
+        subscription_key: "snoozing_duration_listener",
         subscription: nil,
         start_from: :origin,
         retry_opts: [max_retries: 3, base_delay_in_ms: 10]
@@ -387,11 +409,11 @@ defmodule Shared.EventStoreListenerTest do
     refute_received {:events, ^events}
     assert_receive {:events, ^events}
 
-    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingConsumer for PT0.03S"
+    assert logs =~ "Snoozing Shared.EventStoreListenerTest.SnoozingDurationListener for PT0.03S"
   end
 
   test "Log Stacktrace on failing to handle exception during event handling" do
-    start_supervised!(ExampleConsumer)
+    start_supervised!(ExampleListener)
 
     logs =
       capture_log([level: :warning], fn ->
@@ -404,15 +426,15 @@ defmodule Shared.EventStoreListenerTest do
 
     assert logs =~ "Stacktrace"
     assert logs =~ "BAM BAM BAM"
-    assert logs =~ "Shared.EventStoreListenerTest.ExampleConsumer"
+    assert logs =~ "Shared.EventStoreListenerTest.ExampleListener"
     assert logs =~ "lib/event_store/event_store_listener_test.exs"
   end
 
   test "can configure custom restart option for the child spec" do
-    defmodule TemporaryRestartConsumer do
+    defmodule TemporaryRestartListener do
       @moduledoc false
       use Shared.EventStoreListener,
-        subscription_key: "example_consumer",
+        subscription_key: "example_listener",
         event_store: JehovakelEx.EventStore,
         restart: :temporary
 
@@ -421,7 +443,7 @@ defmodule Shared.EventStoreListenerTest do
       end
     end
 
-    assert TemporaryRestartConsumer.handle(@event, %{})[:restart] == :temporary
+    assert TemporaryRestartListener.handle(@event, %{})[:restart] == :temporary
   end
 
   describe "__using__/1" do
@@ -443,7 +465,7 @@ defmodule Shared.EventStoreListenerTest do
           defmodule MissingEventStore do
             @moduledoc false
             use Shared.EventStoreListener,
-              subscription_key: "example_consumer"
+              subscription_key: "example_listener"
           end
         end
       )

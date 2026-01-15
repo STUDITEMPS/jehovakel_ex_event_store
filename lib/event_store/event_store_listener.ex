@@ -174,6 +174,18 @@ defmodule Shared.EventStoreListener do
     handle_event(event, state, context)
   end
 
+  def handle_info({:EXIT, _, :normal}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:EXIT, from, reason}, state) do
+    Logger.error(
+      "Got EXIT from #{inspect(from)} with reason #{inspect(reason)}. Stopping listener #{inspect(state.name)}."
+    )
+
+    {:stop, reason, state}
+  end
+
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
