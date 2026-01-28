@@ -346,11 +346,10 @@ defmodule Shared.EventStoreListenerTest do
   test "ignores normal exits" do
     {:ok, pid} = ExampleListener.start_link([])
 
-    Process.exit(pid, :normal)
+    spawn(fn -> Process.exit(pid, :normal) end)
 
     {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 0})
     assert_receive :event_handled_successfully
-    Process.exit(pid, :kill)
   end
 
   test "stops on abnormal exits of non parent process" do
