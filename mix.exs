@@ -42,7 +42,7 @@ defmodule Shared.MixProject do
   defp deps do
     [
       # CQRS event store using PostgreSQL for persistence
-      {:eventstore, ">= 1.2.1"},
+      {:eventstore, "~> 1.4", github: "STUDITEMPS/eventstore"},
       {:ecto, "~> 3.0", optional: true},
       {:ecto_sql, "~> 3.0", optional: true},
       {:timex, "~> 3.7", optional: true},
