@@ -1,13 +1,1 @@
-{
-    "enabledPlugins": {
-        "jobvalley-elixir@studitemps": true
-    },
-    "extraKnownMarketplaces": {
-        "studitemps": {
-            "source": {
-                "source": "github",
-                "repo": "STUDITEMPS/claude-code-config"
-            }
-        }
-    }
-}
+../external/agent-context/settings.json
