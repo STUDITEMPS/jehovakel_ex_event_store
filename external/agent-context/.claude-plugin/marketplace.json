@@ -1,0 +1,21 @@
+{
+  "name": "studitemps",
+  "owner": {
+    "name": "STUDITEMPS GmbH"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for jobvalley development",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "jobvalley-elixir",
+      "source": {
+        "source": "github",
+        "repo": "STUDITEMPS/claude-code-config"
+      },
+      "description": "Shared Elixir/Phoenix conventions, skills, and default permissions",
+      "version": "1.0.0"
+    }
+  ]
+}

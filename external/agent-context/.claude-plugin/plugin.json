@@ -1,0 +1,10 @@
+{
+  "name": "jobvalley-elixir",
+  "description": "Shared Claude Code conventions, skills, and settings for jobvalley Elixir/Phoenix projects",
+  "version": "1.0.0",
+  "author": {
+    "name": "jobvalley"
+  },
+  "repository": "https://github.com/STUDITEMPS/claude-code-config",
+  "keywords": ["elixir", "phoenix", "jobvalley"]
+}

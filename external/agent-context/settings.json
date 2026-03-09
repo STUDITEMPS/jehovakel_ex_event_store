@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs:*)",
+      "Bash(mix test:*)",
+      "Bash(mix deps.get:*)",
+      "Bash(MIX_ENV=test mix ecto.reset:*)",
+      "Bash(mix format:*)",
+      "Bash(mix credo:*)",
+      "Bash(mix check:*)",
+      "Bash(mix help:*)",
+      "Bash(mix ecto.migrate:*)"
+    ]
+  }
+}
