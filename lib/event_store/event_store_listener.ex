@@ -200,13 +200,13 @@ defmodule Shared.EventStoreListener do
   end
 
   defmacro _check_handler(env) do
-    unless Module.defines?(env.module, {:handle, 3}) or Module.defines?(env.module, {:handle, 2}) do
+    if !(Module.defines?(env.module, {:handle, 3}) or Module.defines?(env.module, {:handle, 2})) do
       raise HandleMissingError, module: env.module
     end
 
     # Add fallbacks that just skip the event. This way the user kann just
     # pattern match on the events they want to handle.
-    quote do
+    quote generated: true do
       def handle(event, metadata, state), do: handle(event, metadata)
       def handle(event, metadata), do: :ok
     end
@@ -215,7 +215,7 @@ defmodule Shared.EventStoreListener do
   defmacro _add_on_error_fallbacks(_env) do
     # Add fallbacks that just skip the error. This way the user kann just
     # pattern match on the errors they want to handle differently.
-    quote do
+    quote generated: true do
       def on_error(_error, _event, _metadata, error_context), do: {:retry, error_context}
 
       def on_error(error, stacktrace, event, metadata, error_context), do: on_error(error, event, metadata, error_context)

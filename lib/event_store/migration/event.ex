@@ -9,13 +9,16 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
     import Ecto.Changeset
     import Ecto.Query
 
+    alias Ecto.Adapters.SQL
+    alias Shared.Ecto.Term
+
     require Logger
 
     @primary_key {:event_id, :binary_id, autogenerate: false}
     schema "events" do
       field(:event_type, :string)
-      field(:data, Shared.Ecto.Term)
-      field(:metadata, Shared.Ecto.Term)
+      field(:data, Term)
+      field(:metadata, Term)
       field(:created_at, :utc_datetime)
       field(:causation_id, :binary_id)
       field(:correlation_id, :binary_id)
@@ -93,13 +96,13 @@ if Code.ensure_loaded?(Ecto) && Code.ensure_loaded?(Shared.Ecto.Term) do
     end
 
     defp disable_append_only_protection(repository) do
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_update_events")
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_delete_events")
+      SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_update_events")
+      SQL.query!(repository, "ALTER TABLE events DISABLE TRIGGER no_delete_events")
     end
 
     defp enable_append_only_protection(repository) do
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_delete_events")
-      Ecto.Adapters.SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_update_events")
+      SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_delete_events")
+      SQL.query!(repository, "ALTER TABLE events ENABLE TRIGGER no_update_events")
     end
   end
 end

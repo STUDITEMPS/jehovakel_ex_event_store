@@ -14,7 +14,7 @@ defimpl Shared.AppendableEvent, for: Any do
           stream_id_field = Keyword.fetch!(unquote(options), :stream_id)
           stream_id = Map.fetch!(event, stream_id_field)
 
-          unless is_binary(stream_id) do
+          if !is_binary(stream_id) do
             raise ArgumentError, "Stream ID has to be a string, got '#{inspect(stream_id)}'."
           end
 

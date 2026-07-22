@@ -30,6 +30,8 @@ defmodule Shared.MixProject do
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
+  # we compile test/support for :dev to prevent a warning because Shared.AppendableEvent has no implementations.
+  defp elixirc_paths(:dev), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
   defp aliases do
@@ -46,10 +48,9 @@ defmodule Shared.MixProject do
       {:ecto, "~> 3.0", optional: true},
       {:ecto_sql, "~> 3.0", optional: true},
       {:timex, "~> 3.7", optional: true},
-      {:mock, "~> 0.3.0", only: :test, optional: true},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false, optional: true},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false, optional: true},
-      {:styler, "~> 0.7", only: [:dev, :test], runtime: false, optional: true}
+      {:styler, "~> 1.0", only: [:dev, :test], runtime: false, optional: true}
     ]
   end
 

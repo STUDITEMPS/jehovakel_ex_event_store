@@ -60,7 +60,7 @@ defmodule Shared.EventStore do
       def append_events(stream_uuid, domain_events, metadata), do: append_event(stream_uuid, domain_events, metadata)
 
       @spec all_events(String.t(), keyword()) ::
-              list(Shared.EventStoreEvent.event_with_metadata())
+              list(EventStoreEvent.event_with_metadata())
               | list(EventStore.RecordedEvent.t())
       def all_events(stream_id \\ nil, opts \\ []) do
         {:ok, events} =
@@ -70,14 +70,14 @@ defmodule Shared.EventStore do
           end
 
         if Keyword.get(opts, :unwrap, true) do
-          Enum.map(events, &Shared.EventStoreEvent.unwrap/1)
+          Enum.map(events, &EventStoreEvent.unwrap/1)
         else
           events
         end
       end
 
       @spec find_event(String.t()) ::
-              {:ok, Shared.EventStoreEvent.event_with_metadata()}
+              {:ok, EventStoreEvent.event_with_metadata()}
               | {:error, :invalid_event_id}
               | {:error, :no_event_found}
               | {:error, any()}
@@ -100,7 +100,7 @@ defmodule Shared.EventStore do
            row
            |> EventStore.Storage.Reader.EventAdapter.to_event_data_from_row()
            |> EventStore.RecordedEvent.deserialize(serializer())
-           |> Shared.EventStoreEvent.unwrap()}
+           |> EventStoreEvent.unwrap()}
         else
           :error ->
             {:error, :invalid_event_id}

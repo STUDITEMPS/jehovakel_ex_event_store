@@ -6,8 +6,7 @@
     ],
     "service": "devcontainer",
     "workspaceFolder": "/workspace",
-    "onCreateCommand": ".devcontainer/bin/onCreateCommand",
-    "updateContentCommand": ".devcontainer/bin/updateContentCommand",
+    "postCreateCommand": ".devcontainer/bin/postCreateCommand",
     "customizations": {
         "codespaces": {
             "repositories": {

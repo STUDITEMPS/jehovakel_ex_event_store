@@ -1,6 +1,0 @@
-#!/bin/bash -ieu
-
-# compile application
-mix deps.get
-mix compile
-MIX_ENV=test mix compile

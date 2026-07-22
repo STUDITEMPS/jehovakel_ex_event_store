@@ -52,9 +52,7 @@ defmodule Shared.LinkAppendableEvents do
     event = eventstore_event.data
 
     if Shared.AppendableEvent.impl_for(event) do
-      streams_to_link = Shared.AppendableEvent.streams_to_link(event)
-
-      for stream <- streams_to_link do
+      for stream <- Shared.AppendableEvent.streams_to_link(event) do
         :ok = link_appendable_event(event_store, eventstore_event, stream)
       end
     end
