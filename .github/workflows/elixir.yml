@@ -66,7 +66,7 @@ jobs:
         run: mix do deps.get, deps.compile
 
       - name: Run static analysis
-        if: github.ref == 'refs/heads/main' && matrix.lint
+        if: matrix.lint
         run: |
           mix format --check-formatted
           mix compile --warnings-as-errors
