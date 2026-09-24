@@ -26,6 +26,7 @@ jobs:
       TZ: Europe/Berlin
       LANG: de_DE.UTF-8
       LC_ALL: de_DE.UTF-8
+      PG_HOST: localhost
       PG_USER: postgres
       PG_PASSWORD: postgres
 
