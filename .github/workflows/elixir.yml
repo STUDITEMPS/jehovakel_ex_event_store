@@ -14,8 +14,8 @@ jobs:
       TZ: Europe/Berlin
       LANG: de_DE.UTF-8
       LC_ALL: de_DE.UTF-8
-      ELIXIR_VERSION: 1.14.2
-      ERLANG_VERSION: 25.2
+      ELIXIR_VERSION: 1.20.4
+      ERLANG_VERSION: 29.0.6
       PG_USER: postgres
       PG_PASSWORD: postgres
 
