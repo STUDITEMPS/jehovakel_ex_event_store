@@ -5,23 +5,34 @@ on:
 
 jobs:
   build:
-    name: Build and test
+    name: Build and test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Mindestversion laut mix.exs (elixir: "~> 1.18")
+          - elixir: 1.18.5
+            otp: 27.3.4
+          # Aktuelle Version laut .tool-versions
+          - elixir: 1.20.4
+            otp: 29.0.6
+            lint: true
 
     env:
       APP_NAME: jehovakel_ex_event_store
       TZ: Europe/Berlin
       LANG: de_DE.UTF-8
       LC_ALL: de_DE.UTF-8
-      ELIXIR_VERSION: 1.14.2
-      ERLANG_VERSION: 25.2
+      PG_HOST: localhost
       PG_USER: postgres
       PG_PASSWORD: postgres
 
     services:
       db:
-        image: postgres:12
+        image: postgres:17.10
         ports: ["5432:5432"]
         env:
           POSTGRES_USER: postgres
@@ -33,22 +44,34 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Set up Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: ${{ env.ELIXIR_VERSION }}
-          otp-version: ${{ env.ERLANG_VERSION }}
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
       - name: Restore Elixir dependencies cache
-        uses: actions/cache@v3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             deps
             _build
             !_build/test/lib/${{ env.APP_NAME }}
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-elixir-${{ matrix.elixir }}-otp-${{ matrix.otp }}-mix-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-elixir-${{ matrix.elixir }}-otp-${{ matrix.otp }}-mix-
+
       - name: Install dependencies
-        run: mix deps.get
+        run: mix do deps.get, deps.compile
+
+      - name: Run static analysis
+        if: matrix.lint
+        run: |
+          mix format --check-formatted
+          mix compile --warnings-as-errors
+          mix credo
+
       - name: Run tests
         run: mix test

@@ -5,14 +5,12 @@ defmodule Shared.MixProject do
     [
       app: :jehovakel_ex_event_store,
       version: "4.0.0",
-      elixir: "~> 1.7",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       test_paths: ["lib"],
-      test_coverage: [tool: ExCoveralls],
       deps: deps(),
-      aliases: aliases(),
       consolidate_protocols: Mix.env() != :test,
       name: "Jehovakel EX EventStore",
       source_url: "https://github.com/STUDITEMPS/jehovakel_ex_event_store",
@@ -48,9 +46,9 @@ defmodule Shared.MixProject do
       {:ecto, "~> 3.0", optional: true},
       {:ecto_sql, "~> 3.0", optional: true},
       {:timex, "~> 3.7", optional: true},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false, optional: true},
-      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false, optional: true},
-      {:styler, "~> 1.0", only: [:dev, :test], runtime: false, optional: true}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false, optional: true},
+      {:mix_test_watch, "~> 1.4", only: [:dev, :test], runtime: false, optional: true},
+      {:styler, "~> 1.12", only: [:dev, :test], runtime: false, optional: true}
     ]
   end
 
