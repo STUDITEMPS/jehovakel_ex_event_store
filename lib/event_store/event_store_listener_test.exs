@@ -198,7 +198,7 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleListener is retrying (1/3)"
       assert logs =~ "ExampleListener is retrying (2/3)"
       assert logs =~ "ExampleListener is retrying (3/3)"
-      assert logs =~ "ExampleListener is stopping after 3 retries due to bad event"
+      assert logs =~ "ExampleListener failed to handle event after 3 retries"
     end
 
     test "allows to configure retry behaviour" do
@@ -240,7 +240,7 @@ defmodule Shared.EventStoreListenerTest do
 
       assert logs =~ "ExampleListenerWithCustomConfig is retrying (1/2)"
       assert logs =~ "ExampleListenerWithCustomConfig is retrying (2/2)"
-      assert logs =~ "ExampleListenerWithCustomConfig is stopping after 2 retries due to bad event"
+      assert logs =~ "ExampleListenerWithCustomConfig failed to handle event after 2 retries"
     end
 
     test "can shutdown during retry" do
@@ -266,7 +266,7 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleListener is retrying (1/3)"
 
       refute logs =~ "ExampleListener is retrying (2/3)"
-      refute logs =~ "is stopping after 3 retries"
+      refute logs =~ "failed to handle event after 3 retries"
     end
 
     test "allows to snooze on error" do

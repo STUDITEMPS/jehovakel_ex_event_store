@@ -262,8 +262,13 @@ defmodule Shared.EventStoreListener do
         {:noreply, ack_event(event, state)}
 
       {:stop, reason} ->
-        report_error(error, stacktrace, event, "#{name} has requested to stop in on_error/5 callback")
-        Logger.warning("#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}")
+        report_error(
+          error,
+          stacktrace,
+          event,
+          "#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}"
+        )
+
         {:stop, {:shutdown, {:stop_requested, reason}}, state}
 
       error ->
@@ -282,7 +287,6 @@ defmodule Shared.EventStoreListener do
       retry_count = ErrorContext.retry_count(context)
 
       report_error(error, stacktrace, event, "#{state.name} failed to handle event after #{retry_count} retries")
-      Logger.warning("#{state.name} is stopping after #{retry_count} retries due to bad event #{event.event_id}")
       {:stop, {:shutdown, {:retries_exhausted, retry_count}}, state}
     end
   end
