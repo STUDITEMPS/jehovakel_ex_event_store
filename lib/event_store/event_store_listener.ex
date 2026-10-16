@@ -262,9 +262,14 @@ defmodule Shared.EventStoreListener do
         {:noreply, ack_event(event, state)}
 
       {:stop, reason} ->
-        reason = "#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}"
-        Logger.warning(reason)
-        {:stop, reason, state}
+        report_error(
+          error,
+          stacktrace,
+          event,
+          "#{name} has requested to stop in on_error/5 callback with #{inspect(reason)}"
+        )
+
+        {:stop, {:shutdown, {:stop_requested, reason}}, state}
 
       error ->
         Logger.warning("#{name} on_error/5 returned an invalid response #{inspect(error)}")
@@ -279,11 +284,10 @@ defmodule Shared.EventStoreListener do
 
       {:noreply, %{state | error_context: context}}
     else
-      reason =
-        "#{state.name} is dying due to bad event after #{ErrorContext.retry_count(context)} retries #{format_error(error)}. Stacktrace: #{inspect(stacktrace)}"
+      retry_count = ErrorContext.retry_count(context)
 
-      Logger.warning(reason)
-      {:stop, reason, state}
+      report_error(error, stacktrace, event, "#{state.name} failed to handle event after #{retry_count} retries")
+      {:stop, {:shutdown, {:retries_exhausted, retry_count}}, state}
     end
   end
 
@@ -369,7 +373,19 @@ defmodule Shared.EventStoreListener do
     end
   end
 
-  defp format_error(error, stacktrace \\ [])
+  defp report_error({:error, reason}, stacktrace, %RecordedEvent{} = event, message) do
+    stacktrace = if is_list(stacktrace), do: stacktrace, else: []
+    kind = if is_exception(reason), do: :error, else: :exit
+
+    # `crash_reason` ist eine Konvention für Error-Reporter, nicht für die Log-Formatierung
+    # der einbindenden Anwendung, daher muss sie nicht in deren Logger-Config stehen.
+    # credo:disable-for-next-line Credo.Check.Warning.MissedMetadataKeyInLoggerConfig
+    Logger.error(
+      "#{message} (event_id: #{event.event_id}, event_type: #{event.event_type}):\n" <>
+        Exception.format(kind, reason, stacktrace),
+      crash_reason: {reason, stacktrace}
+    )
+  end
 
   defp format_error({:error, reason}, stacktrace) when is_exception(reason),
     do: Exception.format(:error, reason, stacktrace)

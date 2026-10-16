@@ -198,7 +198,7 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleListener is retrying (1/3)"
       assert logs =~ "ExampleListener is retrying (2/3)"
       assert logs =~ "ExampleListener is retrying (3/3)"
-      assert logs =~ "is dying due to bad event after 3 retries"
+      assert logs =~ "ExampleListener failed to handle event after 3 retries"
     end
 
     test "allows to configure retry behaviour" do
@@ -240,7 +240,7 @@ defmodule Shared.EventStoreListenerTest do
 
       assert logs =~ "ExampleListenerWithCustomConfig is retrying (1/2)"
       assert logs =~ "ExampleListenerWithCustomConfig is retrying (2/2)"
-      assert logs =~ "is dying due to bad event after 2 retries"
+      assert logs =~ "ExampleListenerWithCustomConfig failed to handle event after 2 retries"
     end
 
     test "can shutdown during retry" do
@@ -266,7 +266,7 @@ defmodule Shared.EventStoreListenerTest do
       assert logs =~ "ExampleListener is retrying (1/3)"
 
       refute logs =~ "ExampleListener is retrying (2/3)"
-      refute logs =~ "is dying due to bad event after 3 retries"
+      refute logs =~ "failed to handle event after 3 retries"
     end
 
     test "allows to snooze on error" do
@@ -423,10 +423,79 @@ defmodule Shared.EventStoreListenerTest do
         assert_receive :event_handled_successfully, 500
       end)
 
-    assert logs =~ "Stacktrace"
+    assert logs =~ "ExampleListener failed to handle event after 3 retries"
     assert logs =~ "BAM BAM BAM"
     assert logs =~ "Shared.EventStoreListenerTest.ExampleListener"
     assert logs =~ "lib/event_store/event_store_listener_test.exs"
+  end
+
+  describe "Error Reporting" do
+    defmodule ForwardingLogHandler do
+      @moduledoc false
+      def log(log_event, %{config: %{test_pid: test_pid}}), do: send(test_pid, {:log_event, log_event})
+    end
+
+    defmodule StoppingListener do
+      @moduledoc false
+      use Shared.EventStoreListener,
+        subscription_key: "stopping_listener",
+        event_store: JehovakelEx.EventStore
+
+      def handle(_event, %{test_pid: test_pid}) do
+        send(test_pid, :exception_during_event_handling)
+        raise EventHandlingError, "Please Stop"
+      end
+
+      def on_error(_error, _event, _metadata, _error_context), do: {:stop, :bitte_anhalten}
+    end
+
+    setup do
+      :ok =
+        :logger.add_handler(:listener_test_handler, ForwardingLogHandler, %{level: :error, config: %{test_pid: self()}})
+
+      on_exit(fn -> :logger.remove_handler(:listener_test_handler) end)
+    end
+
+    test "reports the original exception with stacktrace as crash_reason once retries are exhausted" do
+      start_supervised!(ExampleListener)
+
+      capture_log(fn ->
+        listener_pid = Process.whereis(ExampleListener)
+
+        {:ok, _events} =
+          JehovakelEx.EventStore.append_event(@event, %{test_pid: self(), raise_until: 4})
+
+        assert_receive :event_handled_successfully, 500
+        assert listener_pid != Process.whereis(ExampleListener)
+      end)
+
+      assert_received {:log_event, %{meta: %{crash_reason: {%EventHandlingError{message: "BAM BAM BAM"}, stacktrace}}}}
+
+      assert [{ExampleListener, :handle, 2, _} | _] = stacktrace
+
+      # Der Listener beendet sich mit einem {:shutdown, _}-Grund, daher gibt es
+      # keinen weiteren Crash-Report (der den Fehler ein zweites Mal melden würde).
+      refute_received {:log_event, %{meta: %{crash_reason: _}}}
+    end
+
+    test "reports the original exception and shuts down when on_error/4 requests a stop" do
+      # :temporary, damit der Supervisor den Listener nicht neu startet und dieser
+      # das Event nicht erneut (und endlos) verarbeitet.
+      start_supervised!(Supervisor.child_spec(StoppingListener, restart: :temporary))
+
+      capture_log(fn ->
+        listener_pid = Process.whereis(StoppingListener)
+        ref = Process.monitor(listener_pid)
+
+        {:ok, _events} = JehovakelEx.EventStore.append_event(@event, %{test_pid: self()})
+
+        assert_receive :exception_during_event_handling
+        assert_receive {:DOWN, ^ref, :process, ^listener_pid, {:shutdown, {:stop_requested, :bitte_anhalten}}}, 500
+      end)
+
+      assert_received {:log_event, %{meta: %{crash_reason: {%EventHandlingError{message: "Please Stop"}, [_ | _]}}}}
+      refute_received {:log_event, %{meta: %{crash_reason: _}}}
+    end
   end
 
   test "can configure custom restart option for the child spec" do
