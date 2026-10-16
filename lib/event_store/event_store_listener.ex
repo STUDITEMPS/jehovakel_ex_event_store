@@ -369,12 +369,6 @@ defmodule Shared.EventStoreListener do
     end
   end
 
-  # Meldet den Fehler mit Original-Exception und Stacktrace als `crash_reason`.
-  # Error-Reporter wie Tower oder Sentry werten diese Logger-Metadaten aus und
-  # erzeugen daraus ein Exception-Event mit vollständigem Stacktrace. Der
-  # Listener selbst beendet sich danach mit einem `{:shutdown, _}`-Grund, für
-  # den OTP keinen Crash-Report schreibt, damit der Fehler nicht doppelt
-  # (und ohne Stacktrace) gemeldet wird.
   defp report_error({:error, reason}, stacktrace, %RecordedEvent{} = event, message) do
     stacktrace = if is_list(stacktrace), do: stacktrace, else: []
     kind = if is_exception(reason), do: :error, else: :exit
