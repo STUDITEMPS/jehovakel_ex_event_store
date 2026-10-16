@@ -365,6 +365,20 @@ defmodule Shared.EventStoreListenerTest do
     assert_receive {:DOWN, _ref, :process, ^pid, :halt_stop}
   end
 
+  test "stops when the subscription process goes down" do
+    start_supervised!(Supervisor.child_spec(ExampleListener, restart: :temporary))
+
+    listener_pid = Process.whereis(ExampleListener)
+    listener_ref = Process.monitor(listener_pid)
+    %{subscription: {subscription_pid, _subscription_ref}} = GenServer.call(listener_pid, :get_state)
+
+    capture_log(fn ->
+      Process.exit(subscription_pid, :kill)
+
+      assert_receive {:DOWN, ^listener_ref, :process, ^listener_pid, {:subscription_down, :killed}}, 500
+    end)
+  end
+
   test "accepts Timex.Duration as :snooze delay" do
     defmodule SnoozingDurationListener do
       @moduledoc false

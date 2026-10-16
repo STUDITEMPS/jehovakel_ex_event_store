@@ -186,6 +186,10 @@ defmodule Shared.EventStoreListener do
     {:stop, reason, state}
   end
 
+  def handle_info({:DOWN, ref, :process, pid, reason}, %{subscription: {pid, ref}} = state) do
+    {:stop, {:subscription_down, reason}, %{state | subscription: nil}}
+  end
+
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
@@ -322,21 +326,25 @@ defmodule Shared.EventStoreListener do
              # Explicitly set buffer size to 1 to ensure sequential processing.
              buffer_size: 1
            ) do
-      {:ok, %{state | subscription: subscription}}
+      ref = Process.monitor(subscription)
+      {:ok, %{state | subscription: {subscription, ref}}}
     end
   end
 
-  defp unsubscribe(state) do
+  defp unsubscribe(%{subscription: nil} = state), do: state
+
+  defp unsubscribe(%{subscription: {_pid, ref}} = state) do
     subscription_key = state[:subscription_key]
     event_store = state.event_store
 
-    with :ok <- event_store.unsubscribe_from_all_streams(subscription_key) do
-      {:ok, %{state | subscription: nil}}
-    end
+    Process.demonitor(ref, [:flush])
+
+    :ok = event_store.unsubscribe_from_all_streams(subscription_key)
+    %{state | subscription: nil}
   end
 
-  defp ack_event(event, %{subscription: subscription, event_store: event_store} = state) do
-    :ok = event_store.ack(subscription, event)
+  defp ack_event(event, %{subscription: {pid, _ref}, event_store: event_store} = state) do
+    :ok = event_store.ack(pid, event)
     %{state | error_context: nil}
   end
 
